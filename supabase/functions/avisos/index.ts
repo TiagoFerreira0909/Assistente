@@ -70,7 +70,8 @@ async function processarSubscricoes(hoje: string) {
   const { data: recs, error } = await sb.from("registos")
     .select("user_id,id,dados").eq("tabela", "recorrentes").eq("apagado", false);
   if (error) throw error;
-  const { data: contas } = await sb.from("registos").select("user_id,id,dados").eq("tabela", "contas").eq("apagado", false);
+  const { data: contas, error: e2 } = await sb.from("registos").select("user_id,id,dados").eq("tabela", "contas").eq("apagado", false);
+  if (e2) throw e2;
   const nomeConta = new Map((contas ?? []).map((c) => [`${c.user_id}:${c.id}`, (c.dados as { nome?: string })?.nome || "conta"]));
   const tresDiasAtras = paraISO(new Date(lerData(hoje).getTime() - 3 * 86400000));
   let cobradas = 0, enviadas = 0;
