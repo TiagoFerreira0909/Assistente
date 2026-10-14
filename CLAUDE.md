@@ -5,13 +5,14 @@ Publicada em GitHub Pages: https://tiagoferreira0909.github.io/Assistente/ (ramo
 Tudo em **português de Portugal**: interface, nomes de variáveis/funções e comentários.
 
 ## Ficheiros
-- `index.html` — esqueleto; carrega os scripts por esta ordem: `db.js`, `app.js`, `financas.js`, `nuvem.js`, `arranque.js`
+- `index.html` — esqueleto; carrega os scripts por esta ordem: `db.js`, `app.js`, `financas.js`, `datas.js`, `nuvem.js`, `arranque.js`
 - `app.js` — núcleo: navegação (`VISTAS`, `irPara`, `redesenhar`), utilitários (`el`, `euro`, `campo`, `segmentos`, `lerNumero`), folhas (`abrirFolha`), Início e Notas
 - `financas.js` — contas, movimentos, depósitos a prazo (`verificarDepositos`), subscrições (`verificarSubscricoes`), resumo
+- `datas.js` — datas importantes (aniversários, prazos, pagamentos; repetição anual/mensal) e ligação ao Google Calendar por link de calendário (.ics)
 - `nuvem.js` — login Supabase (REST/fetch, sem biblioteca), sincronização, notificações push, ecrãs de conta
-- `db.js` — IndexedDB local; cada `DB.guardar/apagar` cria um "pendente" para sincronizar. Tabelas: notas, financas (movimentos), contas, recorrentes (subscrições), lembretes, datas
+- `db.js` — IndexedDB local; cada `DB.guardar/apagar` cria um "pendente" para sincronizar. Tabelas: notas, financas (movimentos), contas, recorrentes (subscrições), lembretes, datas, definicoes (ex.: token do calendário)
 - `sw.js` — service worker (rede primeiro, cache como reserva) + push
-- `supabase/` — SQL aplicado e código da Edge Function `avisos`
+- `supabase/` — SQL aplicado e código das Edge Functions `avisos` e `calendario`
 
 ## Regras ao alterar
 - **Sempre que mudares ficheiros da app**: incrementar `VERSAO` em `sw.js` (`assistente-vN`) e `VERSAO_APP` em `app.js` (mesmo N). A app recarrega sozinha quando deteta versão nova; o número aparece em Conta.
@@ -29,8 +30,11 @@ Tudo em **português de Portugal**: interface, nomes de variáveis/funções e c
   depósitos a prazo (avisos 7d/1d/fim) e subscrições (regista a cobrança e notifica se `notificar`).
   O código-fonte está em `supabase/functions/avisos/index.ts`; ao alterá-lo é preciso voltar a publicar a função
   (Supabase CLI: `supabase functions deploy avisos --no-verify-jwt --project-ref putvpneoexwblbbqemer`, ou pelo dashboard).
+- Edge Function `calendario` (verify JWT desligado): `GET ?t=<token>` devolve as datas do utilizador em `.ics`, para o
+  Google Calendar subscrever "a partir do URL". O token vem de `registos` (tabela `definicoes`, id `calendario`),
+  criado na app em Datas → Google Calendar. Não precisa de SQL novo. Publicar como a `avisos` (trocar o nome).
 
 ## Por fazer / ideias
-- Módulos Lembretes e Datas (ainda mostram "Ainda por fazer")
+- Módulo Lembretes (ainda mostra "Ainda por fazer")
 - Juros automáticos mensais para contas poupança (ex.: Revolut, taxa em RPA)
 - Desligar novos registos no Supabase depois de o Tiago ter conta (só ele usa a app)

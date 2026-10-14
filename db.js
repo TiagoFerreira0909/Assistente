@@ -2,10 +2,11 @@
 // e cada alteração fica marcada como "pendente" para ser enviada para a nuvem.
 const DB = (() => {
   const NOME = 'assistente';
-  const VERSAO = 4;
+  const VERSAO = 5;
   // 'financas' guarda os movimentos (despesas, receitas, transferências, juros)
   // 'recorrentes' guarda as subscrições (pagamentos que se repetem)
-  const TABELAS = ['notas', 'financas', 'contas', 'recorrentes', 'lembretes', 'datas'];
+  // 'definicoes' guarda preferências que passam entre aparelhos (ex.: link do Google Calendar)
+  const TABELAS = ['notas', 'financas', 'contas', 'recorrentes', 'lembretes', 'datas', 'definicoes'];
   let ligacao;
   const ouvintes = [];
 
