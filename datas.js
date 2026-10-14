@@ -8,7 +8,7 @@ const TIPOS_DATA = {
   pagamento:   { nome: 'Pagamento',   ic: '💳', repetir: 'mensal' },
   outro:       { nome: 'Outro',       ic: '📌', repetir: 'nao' },
 };
-const REPETICOES = [['nao', 'Uma vez'], ['mensal', 'Mensal'], ['anual', 'Anual']];
+const REPETICOES_DATA = [['nao', 'Uma vez'], ['mensal', 'Mensal'], ['anual', 'Anual']];
 
 // Dia do mês "seguro": 31 → 30/28/29 quando o mês é mais curto (como nas subscrições)
 function dataNoMes(ano, mes, dia) {
@@ -31,7 +31,7 @@ function proximaOcorrencia(d, hoje = hojeISO()) {
   return paraISO(n);
 }
 
-function textoQuando(falta, iso) {
+function textoQuandoData(falta, iso) {
   if (falta === 0) return 'Hoje';
   if (falta === 1) return 'Amanhã';
   if (falta === -1) return 'Ontem';
@@ -44,7 +44,7 @@ function textoQuando(falta, iso) {
 function infoData(d, hoje = hojeISO()) {
   const prox = proximaOcorrencia(d, hoje);
   const falta = diasEntre(hoje, prox);
-  const partes = [textoQuando(falta, prox)];
+  const partes = [textoQuandoData(falta, prox)];
   if (d.tipo === 'aniversario' && !d.semAno && d.repetir === 'anual') {
     const anos = lerData(prox).getFullYear() - lerData(d.data).getFullYear();
     if (anos > 0) partes.push(falta === 0 ? `faz ${anos} anos hoje` : `faz ${anos} anos`);
@@ -109,7 +109,7 @@ function abrirData(dt = null) {
   let mexeuRepetir = !!dt;
   const nome = el('input', { placeholder: 'Ex.: Aniversário da Ana, IRS, Seguro do carro', value: dt?.nome || '' });
   const data = el('input', { type: 'date', value: dt?.data || hojeISO() });
-  const repetir = segmentos(REPETICOES, dt?.repetir || TIPOS_DATA[tipo].repetir, () => { mexeuRepetir = true; atualizar(); });
+  const repetir = segmentos(REPETICOES_DATA, dt?.repetir || TIPOS_DATA[tipo].repetir, () => { mexeuRepetir = true; atualizar(); });
   const semAno = segmentos([['nao', 'Sei o ano'], ['sim', 'Não sei o ano']], dt?.semAno ? 'sim' : 'nao');
   const campoAno = campo('Ano de nascimento', semAno, 'Se souberes o ano, mostramos a idade que vai fazer.');
   const notas = el('textarea', { placeholder: 'Notas (opcional)', style: 'min-height:90px' });
@@ -125,7 +125,7 @@ function abrirData(dt = null) {
       // Ao mudar o tipo, sugere a repetição habitual (se ainda não foi escolhida à mão)
       if (!mexeuRepetir) {
         repetir.valor = t.repetir;
-        repetir.querySelectorAll('button').forEach((x, i) => x.classList.toggle('ativo', REPETICOES[i][0] === t.repetir));
+        repetir.querySelectorAll('button').forEach((x, i) => x.classList.toggle('ativo', REPETICOES_DATA[i][0] === t.repetir));
       }
       atualizar();
     };
