@@ -122,31 +122,62 @@ function lerNumero(txt) {
 }
 
 // ===== Folha (janela que sobe de baixo) =====
+// Estrutura: topo fixo (Cancelar · título · Guardar) + corpo com scroll + rodapé fixo com botão Guardar.
+// O rodapé fica sempre visível, mesmo com o teclado aberto.
 // abrirFolha({ titulo, corpo, guardar: async () => true|'mensagem de erro', apagar })
 function abrirFolha({ titulo: t, corpo, guardar, apagar, textoGuardar = 'Guardar' }) {
   folha.innerHTML = '';
   const erro = el('div', { class: 'erro' });
+  let ocupado = false;
+  async function fazerGuardar() {
+    if (ocupado) return;
+    ocupado = true;
+    try {
+      const r = await guardar();
+      if (r === true || r === undefined) { folha.close(); redesenhar(); }
+      else { erro.textContent = r; corpoEl.scrollTo({ top: 0, behavior: 'smooth' }); }
+    } finally { ocupado = false; }
+  }
   const cancelar = el('button', { type: 'button', onclick: () => folha.close() }, guardar ? 'Cancelar' : 'Fechar');
   const ok = guardar
-    ? el('button', { type: 'button', class: 'guardar', onclick: async () => {
-        const r = await guardar();
-        if (r === true || r === undefined) { folha.close(); redesenhar(); }
-        else erro.textContent = r;
-      } }, textoGuardar)
-    : el('span');
+    ? el('button', { type: 'button', class: 'guardar', onclick: fazerGuardar }, textoGuardar)
+    : el('span', { class: 'espaco-topo' });
+  const corpoEl = el('div', { class: 'folha-corpo' }, erro, corpo,
+    apagar ? el('button', { type: 'button', class: 'btn perigo', onclick: async () => {
+      if (!confirm('Tens a certeza que queres apagar?')) return;
+      await apagar(); folha.close(); redesenhar();
+    } }, 'Apagar') : null);
   folha.append(
     el('div', { class: 'folha-topo' }, cancelar, el('b', {}, t), ok),
-    el('div', { class: 'folha-corpo' }, erro, corpo,
-      apagar ? el('button', { type: 'button', class: 'btn perigo', onclick: async () => {
-        if (!confirm('Tens a certeza que queres apagar?')) return;
-        await apagar(); folha.close(); redesenhar();
-      } }, 'Apagar') : null),
+    corpoEl,
+    guardar ? el('div', { class: 'folha-rodape' },
+      el('button', { type: 'button', class: 'btn largo', onclick: fazerGuardar }, textoGuardar)) : null,
   );
+  // Ao escrever num campo, garante que fica visível acima do teclado
+  corpoEl.addEventListener('focusin', (e) => {
+    setTimeout(() => e.target.scrollIntoView?.({ block: 'center', behavior: 'smooth' }), 350);
+  });
+  document.documentElement.classList.add('folha-aberta');
+  ajustarFolha();
   folha.showModal();
-  folha.scrollTop = 0;
+  corpoEl.scrollTop = 0;
 }
+folha.addEventListener('close', () => document.documentElement.classList.remove('folha-aberta'));
 // Fecha ao tocar fora da folha
 folha.addEventListener('click', (e) => { if (e.target === folha) folha.close(); });
+
+// Encaixa a folha no espaço visível (acima do teclado do iPhone)
+function ajustarFolha() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const baixo = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+  folha.style.setProperty('--folha-baixo', baixo + 'px');
+  folha.style.setProperty('--folha-altura', Math.round(vv.height - 10) + 'px');
+}
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', ajustarFolha);
+  visualViewport.addEventListener('scroll', ajustarFolha);
+}
 
 // ===== Início =====
 async function vistaInicio() {
