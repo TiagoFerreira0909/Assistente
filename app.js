@@ -18,7 +18,7 @@ function svg(nome) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONES[nome]}</svg>`;
 }
 
-const VERSAO_APP = 9; // aparece no ecrã da Conta, para confirmar que o iPhone tem a versão nova
+const VERSAO_APP = 10; // aparece no ecrã da Conta, para confirmar que o iPhone tem a versão nova
 
 // ===== Navegação =====
 const VISTAS = {
@@ -26,7 +26,7 @@ const VISTAS = {
   financas:  { nome: 'Finanças',  desenhar: () => vistaFinancas() },
   notas:     { nome: 'Notas',     desenhar: vistaNotas },
   lembretes: { nome: 'Lembretes', desenhar: () => vistaLembretes() },
-  datas:     { nome: 'Datas',     desenhar: () => emBreve('📅', 'Aniversários, prazos e pagamentos.') },
+  datas:     { nome: 'Datas',     desenhar: () => vistaDatas() },
 };
 let vistaAtual = 'inicio';
 
@@ -224,6 +224,7 @@ async function vistaInicio() {
     rapida('💰', 'Receita', () => abrirMovimento(null, 'receita')),
     rapida('⏰', 'Lembrete', () => abrirLembrete()),
     rapida('📝', 'Nota', () => abrirNota()),
+    rapida('📅', 'Data', () => abrirData()),
   ));
 
   // Lembretes de hoje (e atrasados)
@@ -247,6 +248,14 @@ async function vistaInicio() {
         el('div', { class: 'valor neg' }, euroSinal(-r.valor))));
     }
     conteudo.append(lista);
+  }
+
+  // Próximas datas (aniversários, prazos… nos próximos 14 dias)
+  const datas = await proximasDatas(14);
+  if (datas.length) {
+    conteudo.append(el('div', { class: 'secao' }, el('h2', {}, 'Próximas datas'),
+      el('button', { onclick: () => irPara('datas') }, 'Ver todas')));
+    conteudo.append(el('div', { class: 'lista' }, ...datas.map((d) => linhaData(d))));
   }
 
   // Notas recentes

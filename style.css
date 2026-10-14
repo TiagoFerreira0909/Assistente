@@ -408,3 +408,15 @@ body.com-login { overflow: hidden; }
 .linha .meio span.atrasado { color: var(--negativo); }
 .dia.atrasado { color: var(--negativo); }
 .campo textarea.curta { min-height: 72px; }
+
+/* Datas */
+.linha .valor.data-dia { font-size: 20px; line-height: 1.05; text-align: center; min-width: 40px; }
+.linha .valor.data-dia small { text-transform: uppercase; font-size: 11px; font-weight: 600; }
+.passos { background: var(--cartao); border-radius: var(--raio); padding: 6px 16px; margin-bottom: 12px; }
+.passo { display: flex; gap: 12px; padding: 10px 0; font-size: 15px; line-height: 1.4; }
+.passo + .passo { border-top: 1px solid var(--linha); }
+.passo > span {
+  flex: none; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 13px; font-weight: 700;
+  background: var(--acento-suave); color: var(--acento);
+}
