@@ -57,6 +57,15 @@ const DB = (() => {
     um: (tabela, id) => operar(tabela, 'readonly', (tx) => tx.objectStore(tabela).get(id)),
     guardar,
     apagar,
+    // Usado pela cópia de segurança: grava mantendo a data da alteração original (_t),
+    // para que uma versão mais recente na nuvem continue a ganhar ao sincronizar
+    restaurar: async (tabela, obj) => {
+      await operar([tabela, 'pendentes'], 'readwrite', (tx) => {
+        tx.objectStore('pendentes').put({ chave: `${tabela}:${obj.id}`, tabela, id: obj.id, apagado: false, atualizado: obj._t || 1 });
+        return tx.objectStore(tabela).put(obj);
+      });
+    },
+    avisarMudanca: () => ouvintes.forEach((f) => f()),
     // Usado pela sincronização: grava/apaga sem criar pendentes
     gravarLocal: (tabela, obj) => operar(tabela, 'readwrite', (tx) => tx.objectStore(tabela).put(obj)),
     apagarLocal: (tabela, id) => operar(tabela, 'readwrite', (tx) => tx.objectStore(tabela).delete(id)),

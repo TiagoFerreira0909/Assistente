@@ -18,7 +18,7 @@ function svg(nome) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONES[nome]}</svg>`;
 }
 
-const VERSAO_APP = 8; // aparece no ecrã da Conta, para confirmar que o iPhone tem a versão nova
+const VERSAO_APP = 9; // aparece no ecrã da Conta, para confirmar que o iPhone tem a versão nova
 
 // ===== Navegação =====
 const VISTAS = {
