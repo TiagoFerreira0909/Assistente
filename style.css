@@ -298,3 +298,38 @@ main { padding: 4px 16px calc(env(safe-area-inset-bottom) + 120px); }
 .cores { display: flex; gap: 10px; flex-wrap: wrap; }
 .cores button { width: 34px; height: 34px; border-radius: 50%; border: 3px solid transparent; }
 .cores button.ativo { border-color: var(--texto); }
+
+/* ===== Conta / login ===== */
+.topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.conta-btn {
+  flex: none; width: 38px; height: 38px; border-radius: 50%; border: 0;
+  background: var(--acento-suave); color: var(--acento);
+  font-weight: 700; font-size: 16px; position: relative;
+}
+.conta-btn::after {
+  content: ""; position: absolute; right: 0; bottom: 0;
+  width: 11px; height: 11px; border-radius: 50%;
+  border: 2px solid var(--fundo); background: var(--positivo);
+}
+.conta-btn[data-estado="sem-conta"]::after { display: none; }
+.conta-btn[data-estado="a sincronizar"]::after { background: #f59e0b; }
+.conta-btn[data-estado="offline"]::after { background: var(--suave); }
+.conta-btn[data-estado="erro"]::after { background: var(--negativo); }
+
+body.com-login { overflow: hidden; }
+.login {
+  position: fixed; inset: 0; z-index: 50; overflow-y: auto;
+  background: var(--fundo);
+  padding: calc(env(safe-area-inset-top) + 48px) 24px calc(env(safe-area-inset-bottom) + 24px);
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.login > * { width: 100%; max-width: 400px; }
+.login-icone { width: 84px !important; height: 84px; border-radius: 22px; box-shadow: 0 12px 30px rgba(79,70,229,.35); }
+.login h1 { font-size: 30px; margin: 18px 0 6px; letter-spacing: -.02em; }
+.login p { margin: 0 0 24px; line-height: 1.4; }
+.login form { text-align: left; }
+.login .info { color: var(--positivo); font-size: 14px; margin: 0 4px 12px; line-height: 1.4; }
+.login .info:empty, .login .erro:empty { display: none; }
+.link { border: 0; background: none; color: var(--acento); font-size: 15px; padding: 14px; font-weight: 500; }
+.link.suave { color: var(--suave); }
+.folha .btn.largo { margin-bottom: 10px; }

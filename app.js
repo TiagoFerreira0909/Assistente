@@ -126,7 +126,7 @@ function lerNumero(txt) {
 function abrirFolha({ titulo: t, corpo, guardar, apagar, textoGuardar = 'Guardar' }) {
   folha.innerHTML = '';
   const erro = el('div', { class: 'erro' });
-  const cancelar = el('button', { type: 'button', onclick: () => folha.close() }, 'Cancelar');
+  const cancelar = el('button', { type: 'button', onclick: () => folha.close() }, guardar ? 'Cancelar' : 'Fechar');
   const ok = guardar
     ? el('button', { type: 'button', class: 'guardar', onclick: async () => {
         const r = await guardar();
