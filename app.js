@@ -157,6 +157,19 @@ async function vistaInicio() {
   const fin = await carregarFinancas();
   conteudo.append(avisosDepositos(fin.contas, fin.saldos));
 
+  // Sugestão para ativar notificações (se houver depósitos a prazo)
+  try {
+    if (Nuvem.sessao && fin.contas.some((c) => c.tipo === 'deposito') && Nuvem.notif.suportado()
+        && localStorage.getItem('dicaNotif') !== 'nao' && await Nuvem.notif.estado() === 'inativo') {
+      conteudo.append(el('div', { class: 'aviso dica' },
+        el('div', { class: 'aviso-topo' }, el('span', {}, '🔔'), el('b', {}, 'Avisos dos depósitos')),
+        el('p', {}, 'Ativa as notificações para saberes quando um depósito a prazo vai terminar, mesmo com a app fechada.'),
+        el('div', { class: 'aviso-botoes' },
+          el('button', { class: 'btn', onclick: () => abrirMinhaConta() }, 'Ativar'),
+          el('button', { class: 'btn claro', onclick: () => { localStorage.setItem('dicaNotif', 'nao'); redesenhar(); } }, 'Agora não'))));
+    }
+  } catch {}
+
   // Resumo financeiro (vem do financas.js)
   const r = await resumoFinanceiro();
   conteudo.append(el('div', { class: 'destaque toque', onclick: () => irPara('financas') },

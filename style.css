@@ -346,3 +346,5 @@ body.com-login { overflow: hidden; }
 .aviso-botoes { display: flex; gap: 8px; }
 .aviso-botoes .btn { flex: 1; padding: 10px 12px; font-size: 15px; }
 .linha .meio span.alerta { color: #d97706; font-weight: 600; }
+
+.aviso.dica { border-left-color: var(--acento); }

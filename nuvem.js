@@ -196,7 +196,56 @@ const Nuvem = (() => {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sincronizar(); });
   setInterval(() => { if (document.visibilityState === 'visible') sincronizar(); }, 60000);
 
+  // ----- Notificações (Web Push) -----
+  const FUNCAO = NUVEM.url + '/functions/v1/avisos';
+  function paraBytes(b64) {
+    const p = '='.repeat((4 - b64.length % 4) % 4);
+    const raw = atob((b64 + p).replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+  }
+  const notif = {
+    suportado: () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window,
+    instalada: () => navigator.standalone === true || matchMedia('(display-mode: standalone)').matches,
+    async estado() {
+      if (!notif.suportado()) return 'nao-suportado';
+      if (Notification.permission === 'denied') return 'bloqueado';
+      const reg = await navigator.serviceWorker.ready;
+      return (await reg.pushManager.getSubscription()) ? 'ativo' : 'inativo';
+    },
+    async ativar() {
+      if (!sessao) throw new Error('Entra na tua conta primeiro.');
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') throw new Error('Não deste autorização às notificações.');
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        const { publica } = await (await fetch(FUNCAO + '?chave=1')).json();
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: paraBytes(publica) });
+      }
+      await pedido('/rest/v1/subscricoes?on_conflict=endpoint', {
+        metodo: 'POST', token: await token(),
+        corpo: { endpoint: sub.endpoint, dados: sub.toJSON() },
+        extra: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      });
+      return notif.testar();
+    },
+    async testar() {
+      const r = await fetch(FUNCAO + '?teste=1', { headers: { Authorization: 'Bearer ' + await token() } });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.erro || 'Falhou o teste');
+      return d.enviadas;
+    },
+    async desativar() {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (!sub) return;
+      try { await pedido('/rest/v1/subscricoes?endpoint=eq.' + encodeURIComponent(sub.endpoint), { metodo: 'DELETE', token: await token() }); } catch {}
+      await sub.unsubscribe();
+    },
+  };
+
   return {
+    notif,
     entrar, registar, recuperar, mudarPalavra, sair, sincronizar, lerLinkDoEmail,
     get sessao() { return sessao; },
     get estado() { return estado; },
@@ -290,6 +339,8 @@ function abrirMinhaConta() {
         el('div', { class: 'icone' }, '👤'),
         el('div', { class: 'meio' }, el('b', {}, s.email || 'A tua conta'), estado))),
       el('button', { class: 'btn claro largo', onclick: () => Nuvem.sincronizar() }, 'Sincronizar agora'),
+      el('div', { class: 'secao' }, el('h2', {}, 'Notificações')),
+      zonaNotificacoes(),
       el('div', { class: 'secao' }, el('h2', {}, 'Mudar palavra-passe')),
       campo(null, novaPw),
       el('button', { class: 'btn claro largo', onclick: async (e) => {
@@ -327,3 +378,45 @@ function atualizarBotaoConta() {
   botaoConta.dataset.estado = s ? Nuvem.estado : 'sem-conta';
 }
 Nuvem.aoMudarEstado(atualizarBotaoConta);
+
+// Bloco de notificações (na folha da Conta)
+function zonaNotificacoes() {
+  const caixa = el('div');
+  const texto = el('div', { class: 'ajuda', style: 'margin:0 4px 10px' });
+  const botao = el('button', { class: 'btn claro largo' });
+  const extra = el('button', { class: 'link', style: 'width:100%' });
+  caixa.append(texto, botao, extra);
+
+  async function desenhar() {
+    extra.style.display = 'none'; botao.style.display = '';
+    const iOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    if (iOS && !Nuvem.notif.instalada()) {
+      texto.textContent = 'No iPhone, as notificações só funcionam quando abres a app a partir do ícone no ecrã principal.';
+      botao.style.display = 'none'; return;
+    }
+    const e = await Nuvem.notif.estado();
+    if (e === 'nao-suportado') { texto.textContent = 'Este aparelho/browser não suporta notificações.'; botao.style.display = 'none'; return; }
+    if (e === 'bloqueado') { texto.textContent = 'As notificações estão bloqueadas. Ativa-as nas Definições do iPhone → Notificações → Assistente.'; botao.style.display = 'none'; return; }
+    if (e === 'ativo') {
+      texto.textContent = '✅ Ativas neste aparelho. Avisamos 7 dias antes, 1 dia antes e quando um depósito a prazo termina.';
+      botao.textContent = 'Enviar notificação de teste';
+      botao.onclick = async () => {
+        botao.textContent = 'A enviar…';
+        try { const n = await Nuvem.notif.testar(); botao.textContent = n ? 'Enviada ✓' : 'Não foi enviada — tenta desligar e ligar'; }
+        catch (x) { botao.textContent = x.message; }
+      };
+      extra.style.display = ''; extra.textContent = 'Desligar notificações neste aparelho';
+      extra.onclick = async () => { await Nuvem.notif.desativar(); desenhar(); };
+      return;
+    }
+    texto.textContent = 'Recebe um aviso no telemóvel quando um depósito a prazo estiver a terminar, mesmo com a app fechada.';
+    botao.textContent = 'Ativar notificações';
+    botao.onclick = async () => {
+      botao.textContent = 'A ativar…';
+      try { await Nuvem.notif.ativar(); await desenhar(); }
+      catch (x) { botao.textContent = 'Ativar notificações'; texto.textContent = x.message; }
+    };
+  }
+  desenhar();
+  return caixa;
+}
