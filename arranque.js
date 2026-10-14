@@ -13,7 +13,14 @@
   if (link?.erro) { ecraLogin(); document.querySelector('.login .erro').textContent = 'O link do email expirou ou já foi usado. Entra ou pede outro.'; }
   else if (link?.tipo === 'recovery') folhaNovaPalavra();
   else if (!Nuvem.sessao && !Nuvem.semConta()) ecraLogin();
-  else Nuvem.sincronizar();
+
+  // Depósitos a prazo: depois de sincronizar, regista juros dos que terminaram
+  async function depositos() {
+    try { if (Nuvem.sessao) await Nuvem.sincronizar(); } catch {}
+    if (await verificarDepositos() && !document.querySelector('dialog[open]')) redesenhar();
+  }
+  depositos();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') depositos(); });
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 })();

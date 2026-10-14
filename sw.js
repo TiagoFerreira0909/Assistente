@@ -1,6 +1,6 @@
 // Service worker: guarda os ficheiros da app para funcionar sem internet.
 // Sempre que alterares ficheiros, muda o número da versão para o iPhone atualizar.
-const VERSAO = 'assistente-v3';
+const VERSAO = 'assistente-v4';
 const FICHEIROS = [
   './', 'index.html', 'style.css', 'db.js', 'app.js', 'financas.js', 'nuvem.js', 'arranque.js', 'manifest.json',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',

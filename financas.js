@@ -106,6 +106,88 @@ function seletorMes(aoMudar) {
     el('button', { onclick: () => mudar(1), 'aria-label': 'Mês seguinte' }, '›'));
 }
 
+// ----- Depósitos a prazo -----
+function lerData(iso) { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d); }
+function paraISO(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function diasEntre(a, b) { return Math.round((lerData(b) - lerData(a)) / 86400000); }
+function dataBonita(iso) { return lerData(iso).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short', year: 'numeric' }); }
+function arred(v) { return Math.round(v * 100) / 100; }
+
+// Calcula o fim do próximo prazo com a mesma duração (em meses, se possível)
+function proximoFim(inicio, fim) {
+  const a = lerData(inicio), b = lerData(fim);
+  const meses = (b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth();
+  if (meses > 0 && a.getDate() === b.getDate()) {
+    const n = new Date(b.getFullYear(), b.getMonth() + meses, 1);
+    const ultimoDia = new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate();
+    n.setDate(Math.min(b.getDate(), ultimoDia));
+    return paraISO(n);
+  }
+  const n = lerData(fim); n.setDate(n.getDate() + diasEntre(inicio, fim));
+  return paraISO(n);
+}
+
+// Juros de um prazo: capital × taxa × dias/365 (menos IRS se aplicável)
+function jurosDoPrazo(conta, capital, inicio, fim) {
+  if (!conta.taxa || capital <= 0) return 0;
+  const bruto = capital * conta.taxa / 100 * diasEntre(inicio, fim) / 365;
+  return arred(conta.irs === false ? bruto : bruto * (1 - IRS_JUROS));
+}
+
+// Corre ao abrir a app: regista juros dos depósitos que terminaram e renova-os
+async function verificarDepositos() {
+  const { contas, saldos } = await carregarFinancas();
+  const hoje = hojeISO();
+  let mudou = false;
+  for (const c of contas) {
+    if (c.tipo !== 'deposito' || !c.dataInicio || !c.dataFim || c.terminado) continue;
+    const conta = { ...c };
+    let capital = saldos[c.id], alterada = false, voltas = 0;
+    while (conta.dataFim <= hoje && voltas++ < 60) {
+      const destino = conta.contaJurosId || conta.id;
+      const idJuros = `juros-${conta.id}-${conta.dataFim}`;
+      let valor = jurosDoPrazo(conta, capital, conta.dataInicio, conta.dataFim);
+      const existente = await DB.um('financas', idJuros);
+      if (existente) valor = existente.valor;
+      else if (valor > 0) {
+        await DB.guardar('financas', {
+          id: idJuros, tipo: 'juros', valor, contaId: destino, contaDestinoId: null, categoria: null,
+          data: conta.dataFim, descricao: `Juros · ${conta.nome}`, criado: Date.now(), automatico: true,
+        });
+        if (destino === conta.id) capital += valor;
+      }
+      conta.aviso = { fim: conta.dataFim, juros: valor, taxa: conta.taxa, renovado: conta.renovar !== false };
+      if (conta.renovar === false) { conta.terminado = true; alterada = true; break; }
+      const novoFim = proximoFim(conta.dataInicio, conta.dataFim);
+      conta.dataInicio = conta.dataFim;
+      conta.dataFim = novoFim;
+      alterada = true;
+    }
+    if (alterada) { await DB.guardar('contas', conta); mudou = true; }
+  }
+  return mudou;
+}
+
+// Avisos de depósitos que terminaram (Início e Finanças)
+function avisosDepositos(contas, saldos) {
+  const caixa = el('div');
+  for (const c of contas) {
+    if (!c.aviso) continue;
+    const a = c.aviso;
+    const texto = a.renovado
+      ? `Terminou a ${dataBonita(a.fim)} e rendeu ${euro(a.juros)} (já registado). O banco renovou-o até ${dataBonita(c.dataFim)} — confirma se a taxa continua a ${String(a.taxa).replace('.', ',')}%.`
+      : `Terminou a ${dataBonita(a.fim)} e rendeu ${euro(a.juros)} (já registado). O dinheiro está disponível.`;
+    const fechar = async () => { const n = { ...c }; delete n.aviso; await DB.guardar('contas', n); redesenhar(); };
+    caixa.append(el('div', { class: 'aviso' },
+      el('div', { class: 'aviso-topo' }, el('span', {}, '🔔'), el('b', {}, `Depósito terminou: ${c.nome}`)),
+      el('p', {}, texto),
+      el('div', { class: 'aviso-botoes' },
+        a.renovado ? el('button', { class: 'btn', onclick: () => abrirConta(c, saldos[c.id]) }, 'Atualizar taxa') : null,
+        el('button', { class: 'btn claro', onclick: fechar }, a.renovado ? 'Taxa igual' : 'OK'))));
+  }
+  return caixa;
+}
+
 // ----- Contas -----
 function desenharContas(zona, { contas, saldos }) {
   if (!contas.length) {
@@ -115,6 +197,7 @@ function desenharContas(zona, { contas, saldos }) {
       el('br'), el('button', { class: 'btn', onclick: () => abrirConta() }, 'Adicionar conta')));
     return;
   }
+  zona.append(avisosDepositos(contas, saldos));
   const total = contas.reduce((s, c) => s + saldos[c.id], 0);
   const jm = contas.reduce((s, c) => s + jurosMensais(c, saldos[c.id]), 0);
 
@@ -130,22 +213,31 @@ function desenharContas(zona, { contas, saldos }) {
     el('button', { onclick: () => abrirConta() }, '+ Nova')));
 
   const lista = el('div', { class: 'lista' });
+  const hoje = hojeISO();
   for (const c of contas) {
     const t = TIPOS_CONTA[c.tipo] || TIPOS_CONTA.outro;
     const s = saldos[c.id];
-    const j = jurosMensais(c, s);
-    const detalhe = c.taxa
-      ? `${String(c.taxa).replace('.', ',')}% · ≈ ${euro(j)}/mês`
-      : t.nome;
+    const taxaTxt = c.taxa ? String(c.taxa).replace('.', ',') + '%' : '';
+    let detalhe = c.taxa ? `${taxaTxt} · ≈ ${euro(jurosMensais(c, s))}/mês` : t.nome;
+    let alerta = false;
+    if (c.tipo === 'deposito' && c.dataFim && !c.terminado) {
+      const falta = diasEntre(hoje, c.dataFim);
+      const fim = jurosDoPrazo(c, s, c.dataInicio, c.dataFim);
+      detalhe = falta <= 30
+        ? `⏳ Termina ${falta === 0 ? 'hoje' : falta === 1 ? 'amanhã' : `em ${falta} dias`} · +${euro(fim)}`
+        : `${taxaTxt} · até ${dataBonita(c.dataFim)} · +${euro(fim)}`;
+      alerta = falta <= 30;
+    } else if (c.terminado) detalhe = 'Depósito terminado';
     lista.append(el('div', { class: 'linha', onclick: () => abrirConta(c, s) },
       el('div', { class: 'icone' }, t.ic),
-      el('div', { class: 'meio' }, el('b', {}, c.nome), el('span', {}, detalhe)),
+      el('div', { class: 'meio' }, el('b', {}, c.nome), el('span', { class: alerta ? 'alerta' : '' }, detalhe)),
       el('div', { class: 'valor' + (s < 0 ? ' neg' : '') }, euro(s))));
   }
   zona.append(lista);
 }
 
-function abrirConta(conta = null, saldoAtual = 0) {
+async function abrirConta(conta = null, saldoAtual = 0) {
+  const outras = (await DB.todos('contas')).filter((c) => c.id !== conta?.id);
   const nome = el('input', { placeholder: 'Ex.: Conta CGD, Poupança Revolut', value: conta?.nome || '' });
   const tipo = el('select', {}, ...Object.entries(TIPOS_CONTA).map(([k, t]) =>
     el('option', { value: k, selected: (conta?.tipo || 'corrente') === k }, `${t.ic}  ${t.nome}`)));
@@ -154,14 +246,38 @@ function abrirConta(conta = null, saldoAtual = 0) {
   const irs = segmentos([['sim', 'Descontar IRS (28%)'], ['nao', 'Valor bruto']], conta?.irs === false ? 'nao' : 'sim');
   const previsao = el('div', { class: 'ajuda' });
 
-  function atualizarPrevisao() {
+  // Campos só do depósito a prazo
+  const inicio = el('input', { type: 'date', value: conta?.dataInicio || hojeISO() });
+  const fim = el('input', { type: 'date', value: conta?.dataFim || '' });
+  const renovar = segmentos([['sim', 'Renova sozinho'], ['nao', 'Não renova']], conta?.renovar === false ? 'nao' : 'sim');
+  const pagosEm = el('select', {},
+    el('option', { value: '' }, 'Neste depósito'),
+    ...outras.map((c) => el('option', { value: c.id, selected: conta?.contaJurosId === c.id }, `${(TIPOS_CONTA[c.tipo] || TIPOS_CONTA.outro).ic}  ${c.nome}`)));
+  const zonaDeposito = el('div', {},
+    el('div', { class: 'dois' }, campo('Início', inicio), campo('Fim', fim)),
+    campo('Quando termina', renovar),
+    campo('Juros pagos em', pagosEm));
+
+  function atualizar() {
+    const ehDeposito = tipo.value === 'deposito';
+    zonaDeposito.style.display = ehDeposito ? '' : 'none';
     const s = lerNumero(saldo.value) || 0, tx = lerNumero(taxa.value) || 0;
-    const j = jurosMensais({ taxa: tx, irs: irs.valor === 'sim' }, s);
-    previsao.textContent = tx ? `Rende ≈ ${euro(j)} por mês, ${euro(j * 12)} por ano.` : '';
+    const base = { taxa: tx, irs: irs.valor === 'sim' };
+    if (!tx) { previsao.textContent = ''; return; }
+    if (ehDeposito && inicio.value && fim.value && fim.value > inicio.value) {
+      const total = jurosDoPrazo(base, s, inicio.value, fim.value);
+      const hoje = hojeISO();
+      const ate = hoje < inicio.value ? inicio.value : hoje > fim.value ? fim.value : hoje;
+      const ja = jurosDoPrazo(base, s, inicio.value, ate);
+      previsao.textContent = `No fim (${dataBonita(fim.value)}) recebes ≈ ${euro(total)} de juros. Até hoje já acumulou ≈ ${euro(ja)}.`;
+    } else {
+      const j = jurosMensais(base, s);
+      previsao.textContent = `Rende ≈ ${euro(j)} por mês, ${euro(j * 12)} por ano.`;
+    }
   }
-  saldo.oninput = taxa.oninput = atualizarPrevisao;
-  irs.addEventListener('click', atualizarPrevisao);
-  atualizarPrevisao();
+  saldo.oninput = taxa.oninput = inicio.onchange = fim.onchange = tipo.onchange = atualizar;
+  irs.addEventListener('click', atualizar);
+  atualizar();
 
   abrirFolha({
     titulo: conta ? 'Editar conta' : 'Nova conta',
@@ -169,8 +285,9 @@ function abrirConta(conta = null, saldoAtual = 0) {
       campo('Nome', nome),
       campo('Tipo', tipo),
       campo('Saldo atual (€)', saldo, 'O saldo que tens hoje nesta conta.'),
-      campo('Taxa de juro / rendimento anual (%)', taxa),
+      campo('Taxa de juro anual (TANB, %)', taxa),
       campo(null, irs),
+      zonaDeposito,
       previsao,
     ),
     guardar: async () => {
@@ -179,16 +296,25 @@ function abrirConta(conta = null, saldoAtual = 0) {
       if (isNaN(s)) return 'O saldo não é um número válido.';
       const tx = lerNumero(taxa.value || '0');
       if (isNaN(tx) || tx < 0) return 'A taxa não é válida.';
+      const ehDeposito = tipo.value === 'deposito';
+      if (ehDeposito && (!inicio.value || !fim.value)) return 'Indica a data de início e de fim do depósito.';
+      if (ehDeposito && fim.value <= inicio.value) return 'A data de fim tem de ser depois do início.';
       const id = conta?.id || DB.novoId();
       // Guarda o saldo inicial de forma a que o saldo atual fique igual ao que escreveste
       const movs = await DB.todos('financas');
       const efeito = movs.reduce((acc, m) => acc + efeitoNaConta(m, id), 0);
-      await DB.guardar('contas', {
+      const nova = {
         id, nome: nome.value.trim(), tipo: tipo.value,
-        saldoInicial: Math.round((s - efeito) * 100) / 100,
+        saldoInicial: arred(s - efeito),
         taxa: tx, irs: irs.valor === 'sim',
         criada: conta?.criada || Date.now(),
+      };
+      if (ehDeposito) Object.assign(nova, {
+        dataInicio: inicio.value, dataFim: fim.value,
+        renovar: renovar.valor === 'sim', contaJurosId: pagosEm.value || null,
       });
+      await DB.guardar('contas', nova); // ao guardar, o aviso fica resolvido
+      if (ehDeposito && await verificarDepositos()) setTimeout(redesenhar, 50);
     },
     apagar: conta ? async () => {
       const movs = await DB.todos('financas');

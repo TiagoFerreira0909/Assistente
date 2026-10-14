@@ -278,7 +278,8 @@ main { padding: 4px 16px calc(env(safe-area-inset-bottom) + 120px); }
 .campo textarea { min-height: 220px; resize: none; line-height: 1.45; }
 .campo input:focus, .campo select:focus, .campo textarea:focus { box-shadow: 0 0 0 2px var(--acento); }
 .campo .ajuda { font-size: 13px; color: var(--suave); margin: 6px 4px 0; }
-.dois { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dois { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px; }
+.campo input[type=date] { min-width: 0; display: block; }
 
 .valor-grande {
   text-align: center; font-size: 44px !important; font-weight: 800;
@@ -333,3 +334,15 @@ body.com-login { overflow: hidden; }
 .link { border: 0; background: none; color: var(--acento); font-size: 15px; padding: 14px; font-weight: 500; }
 .link.suave { color: var(--suave); }
 .folha .btn.largo { margin-bottom: 10px; }
+
+/* ===== Avisos ===== */
+.aviso {
+  background: var(--cartao); border-radius: var(--raio); box-shadow: var(--sombra);
+  padding: 14px 16px; margin-bottom: 12px;
+  border-left: 4px solid #f59e0b;
+}
+.aviso-topo { display: flex; gap: 8px; align-items: center; font-size: 16px; }
+.aviso p { margin: 6px 0 12px; color: var(--suave); font-size: 14px; line-height: 1.4; }
+.aviso-botoes { display: flex; gap: 8px; }
+.aviso-botoes .btn { flex: 1; padding: 10px 12px; font-size: 15px; }
+.linha .meio span.alerta { color: #d97706; font-weight: 600; }

@@ -38,4 +38,5 @@ Fecha e abre a app no iPhone (às vezes duas vezes) para apanhar a versão nova.
   Funciona sem internet: as alterações são enviadas quando houver rede.
 - Sem conta ("Continuar sem conta"), os dados ficam só neste aparelho.
 - Módulos por fazer: Lembretes, Datas.
+- Depósitos a prazo: com data de início e fim. Quando terminam, a app regista os juros, renova o prazo (se escolheres "Renova sozinho") e mostra um aviso para confirmares a nova taxa.
 - Juros: a estimativa usa a taxa anual que indicares e desconta 28% de IRS (podes escolher valor bruto por conta).

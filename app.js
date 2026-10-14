@@ -153,6 +153,10 @@ async function vistaInicio() {
   const hoje = maiuscula(new Date().toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' }));
   conteudo.append(el('p', { class: 'subtitulo' }, hoje));
 
+  // Avisos de depósitos a prazo que terminaram
+  const fin = await carregarFinancas();
+  conteudo.append(avisosDepositos(fin.contas, fin.saldos));
+
   // Resumo financeiro (vem do financas.js)
   const r = await resumoFinanceiro();
   conteudo.append(el('div', { class: 'destaque toque', onclick: () => irPara('financas') },
