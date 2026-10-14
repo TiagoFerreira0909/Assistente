@@ -18,15 +18,15 @@ function svg(nome) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONES[nome]}</svg>`;
 }
 
-const VERSAO_APP = 8; // aparece no ecrã da Conta, para confirmar que o iPhone tem a versão nova
+const VERSAO_APP = 10; // aparece no ecrã da Conta, para confirmar que o iPhone tem a versão nova
 
 // ===== Navegação =====
 const VISTAS = {
   inicio:    { nome: 'Início',    titulo: () => saudacao(), desenhar: vistaInicio },
   financas:  { nome: 'Finanças',  desenhar: () => vistaFinancas() },
   notas:     { nome: 'Notas',     desenhar: vistaNotas },
-  lembretes: { nome: 'Lembretes', desenhar: () => emBreve('⏰', 'Lembretes com data, hora e notificações.') },
-  datas:     { nome: 'Datas',     desenhar: () => emBreve('📅', 'Aniversários, prazos e pagamentos.') },
+  lembretes: { nome: 'Lembretes', desenhar: () => vistaLembretes() },
+  datas:     { nome: 'Datas',     desenhar: () => vistaDatas() },
 };
 let vistaAtual = 'inicio';
 
@@ -194,11 +194,11 @@ async function vistaInicio() {
   // Sugestão para ativar notificações (se houver depósitos a prazo)
   try {
     const recs = await DB.todos('recorrentes');
-    if (Nuvem.sessao && (fin.contas.some((c) => c.tipo === 'deposito') || recs.some((r) => r.notificar)) && Nuvem.notif.suportado()
+    if (Nuvem.sessao && (fin.contas.some((c) => c.tipo === 'deposito') || recs.some((r) => r.notificar) || (await DB.todos('lembretes')).some((l) => l.notificar && !l.concluido)) && Nuvem.notif.suportado()
         && localStorage.getItem('dicaNotif') !== 'nao' && await Nuvem.notif.estado() === 'inativo') {
       conteudo.append(el('div', { class: 'aviso dica' },
         el('div', { class: 'aviso-topo' }, el('span', {}, '🔔'), el('b', {}, 'Ativa as notificações')),
-        el('p', {}, 'Para saberes quando um depósito termina ou uma subscrição é cobrada, mesmo com a app fechada.'),
+        el('p', {}, 'Para receberes os lembretes à hora certa e saberes quando um depósito termina ou uma subscrição é cobrada, mesmo com a app fechada.'),
         el('div', { class: 'aviso-botoes' },
           el('button', { class: 'btn', onclick: () => abrirMinhaConta() }, 'Ativar'),
           el('button', { class: 'btn claro', onclick: () => { localStorage.setItem('dicaNotif', 'nao'); redesenhar(); } }, 'Agora não'))));
@@ -222,8 +222,14 @@ async function vistaInicio() {
   conteudo.append(el('div', { class: 'rapidas' },
     rapida('💸', 'Despesa', () => abrirMovimento(null, 'despesa')),
     rapida('💰', 'Receita', () => abrirMovimento(null, 'receita')),
+    rapida('⏰', 'Lembrete', () => abrirLembrete()),
     rapida('📝', 'Nota', () => abrirNota()),
+    rapida('📅', 'Data', () => abrirData()),
   ));
+
+  // Lembretes de hoje (e atrasados)
+  const lem = await lembretesInicio();
+  if (lem) conteudo.append(lem);
 
   // Próximas cobranças (subscrições nos próximos 7 dias)
   const hojeI = hojeISO();
@@ -242,6 +248,14 @@ async function vistaInicio() {
         el('div', { class: 'valor neg' }, euroSinal(-r.valor))));
     }
     conteudo.append(lista);
+  }
+
+  // Próximas datas (aniversários, prazos… nos próximos 14 dias)
+  const datas = await proximasDatas(14);
+  if (datas.length) {
+    conteudo.append(el('div', { class: 'secao' }, el('h2', {}, 'Próximas datas'),
+      el('button', { onclick: () => irPara('datas') }, 'Ver todas')));
+    conteudo.append(el('div', { class: 'lista' }, ...datas.map((d) => linhaData(d))));
   }
 
   // Notas recentes

@@ -2,10 +2,11 @@
 // e cada alteração fica marcada como "pendente" para ser enviada para a nuvem.
 const DB = (() => {
   const NOME = 'assistente';
-  const VERSAO = 4;
+  const VERSAO = 5;
   // 'financas' guarda os movimentos (despesas, receitas, transferências, juros)
   // 'recorrentes' guarda as subscrições (pagamentos que se repetem)
-  const TABELAS = ['notas', 'financas', 'contas', 'recorrentes', 'lembretes', 'datas'];
+  // 'definicoes' guarda preferências que passam entre aparelhos (ex.: link do Google Calendar)
+  const TABELAS = ['notas', 'financas', 'contas', 'recorrentes', 'lembretes', 'datas', 'definicoes'];
   let ligacao;
   const ouvintes = [];
 
@@ -57,6 +58,15 @@ const DB = (() => {
     um: (tabela, id) => operar(tabela, 'readonly', (tx) => tx.objectStore(tabela).get(id)),
     guardar,
     apagar,
+    // Usado pela cópia de segurança: grava mantendo a data da alteração original (_t),
+    // para que uma versão mais recente na nuvem continue a ganhar ao sincronizar
+    restaurar: async (tabela, obj) => {
+      await operar([tabela, 'pendentes'], 'readwrite', (tx) => {
+        tx.objectStore('pendentes').put({ chave: `${tabela}:${obj.id}`, tabela, id: obj.id, apagado: false, atualizado: obj._t || 1 });
+        return tx.objectStore(tabela).put(obj);
+      });
+    },
+    avisarMudanca: () => ouvintes.forEach((f) => f()),
     // Usado pela sincronização: grava/apaga sem criar pendentes
     gravarLocal: (tabela, obj) => operar(tabela, 'readwrite', (tx) => tx.objectStore(tabela).put(obj)),
     apagarLocal: (tabela, id) => operar(tabela, 'readwrite', (tx) => tx.objectStore(tabela).delete(id)),
