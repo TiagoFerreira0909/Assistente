@@ -77,21 +77,26 @@ let finMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
 async function vistaFinancas() {
   const dados = await carregarFinancas();
+  dados.recorrentes = await DB.todos('recorrentes');
 
-  conteudo.append(segmentos(
-    [['contas', 'Contas'], ['movimentos', 'Movimentos'], ['resumo', 'Resumo']],
+  const seg = segmentos(
+    [['contas', 'Contas'], ['movimentos', 'Movimentos'], ['subscricoes', 'Subscrições'], ['resumo', 'Resumo']],
     finSep,
     (v) => { finSep = v; try { localStorage.setItem('finSep', v); } catch {} desenhar(); },
-  ));
+  );
+  seg.classList.add('quatro');
+  conteudo.append(seg);
   const zona = el('div');
   conteudo.append(zona);
 
-  botaoAdicionar(() => dados.contas.length ? abrirMovimento() : abrirConta());
+  botaoAdicionar(() => !dados.contas.length ? abrirConta()
+    : finSep === 'subscricoes' ? abrirSubscricao() : abrirMovimento());
 
   function desenhar() {
     zona.innerHTML = '';
     if (finSep === 'contas') desenharContas(zona, dados);
     else if (finSep === 'movimentos') desenharMovimentos(zona, dados);
+    else if (finSep === 'subscricoes') desenharSubscricoes(zona, dados);
     else desenharResumo(zona, dados);
   }
   desenhar();
@@ -490,4 +495,151 @@ function desenharResumo(zona, dados) {
   if (!receitas && !despesas) {
     zona.append(el('div', { class: 'vazio' }, el('div', { class: 'grande-ic' }, '📊'), 'Sem movimentos neste mês.'));
   }
+}
+
+// =====================================================
+//  Subscrições (pagamentos que se repetem)
+// =====================================================
+const FREQUENCIAS = {
+  semanal:    { nome: 'Semanal',    curto: 'semana',    porMes: 52 / 12 },
+  mensal:     { nome: 'Mensal',     curto: 'mês',       porMes: 1 },
+  trimestral: { nome: 'Trimestral', curto: 'trimestre', porMes: 1 / 3 },
+  anual:      { nome: 'Anual',      curto: 'ano',       porMes: 1 / 12 },
+};
+
+// Data da cobrança seguinte (mantém o dia do mês original, ex.: 31 → 28/29/30 quando o mês é mais curto)
+function proximaCobranca(iso, freq, dia) {
+  const d = lerData(iso);
+  if (freq === 'semanal') { d.setDate(d.getDate() + 7); return paraISO(d); }
+  const meses = freq === 'anual' ? 12 : freq === 'trimestral' ? 3 : 1;
+  const n = new Date(d.getFullYear(), d.getMonth() + meses, 1);
+  const ultimo = new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate();
+  n.setDate(Math.min(dia || d.getDate(), ultimo));
+  return paraISO(n);
+}
+
+// Regista as cobranças que já chegaram (corre ao abrir a app; a função na nuvem faz o mesmo às 9h)
+async function verificarSubscricoes() {
+  const hoje = hojeISO();
+  let mudou = false;
+  for (const r of await DB.todos('recorrentes')) {
+    if (r.ativa === false || !r.proximaData || r.proximaData > hoje) continue;
+    const sub = { ...r };
+    let voltas = 0;
+    while (sub.proximaData <= hoje && voltas++ < 120) {
+      const id = `sub-${sub.id}-${sub.proximaData}`;
+      if (!(await DB.um('financas', id))) {
+        await DB.guardar('financas', {
+          id, tipo: 'despesa', valor: sub.valor, contaId: sub.contaId, contaDestinoId: null,
+          categoria: sub.categoria || 'Subscrições', data: sub.proximaData,
+          descricao: sub.nome, criado: Date.now(), automatico: true, subscricaoId: sub.id,
+        });
+      }
+      sub.proximaData = proximaCobranca(sub.proximaData, sub.frequencia, sub.dia);
+    }
+    await DB.guardar('recorrentes', sub);
+    mudou = true;
+  }
+  return mudou;
+}
+
+function custoMensal(r) { return r.ativa === false ? 0 : r.valor * (FREQUENCIAS[r.frequencia] || FREQUENCIAS.mensal).porMes; }
+
+function desenharSubscricoes(zona, { contas, recorrentes }) {
+  if (!recorrentes.length) {
+    zona.append(el('div', { class: 'vazio' },
+      el('div', { class: 'grande-ic' }, '🔁'),
+      'Adiciona as tuas subscrições e pagamentos fixos (Netflix, ginásio, telemóvel, seguros…). No dia certo, o valor sai sozinho da conta que escolheres.',
+      el('br'), el('button', { class: 'btn', onclick: () => contas.length ? abrirSubscricao() : abrirConta() }, 'Adicionar subscrição')));
+    return;
+  }
+  const mensal = recorrentes.reduce((s, r) => s + custoMensal(r), 0);
+  zona.append(el('div', { class: 'destaque' },
+    el('small', {}, 'Subscrições por mês'),
+    el('div', { class: 'grande' }, euro(mensal)),
+    el('div', { class: 'linha-dupla' },
+      el('div', {}, el('small', {}, 'Por ano'), el('b', {}, euro(mensal * 12))),
+      el('div', {}, el('small', {}, 'Ativas'), el('b', {}, String(recorrentes.filter((r) => r.ativa !== false).length))),
+    )));
+
+  zona.append(el('div', { class: 'secao' }, el('h2', {}, 'Próximas cobranças'),
+    el('button', { onclick: () => abrirSubscricao() }, '+ Nova')));
+
+  const nomeConta = Object.fromEntries(contas.map((c) => [c.id, c.nome]));
+  const ordem = [...recorrentes].sort((a, b) => (a.ativa === false) - (b.ativa === false) || a.proximaData.localeCompare(b.proximaData));
+  const lista = el('div', { class: 'lista' });
+  const hoje = hojeISO();
+  for (const r of ordem) {
+    const f = FREQUENCIAS[r.frequencia] || FREQUENCIAS.mensal;
+    const falta = diasEntre(hoje, r.proximaData);
+    const quando = r.ativa === false ? 'Em pausa'
+      : falta === 0 ? 'Hoje' : falta === 1 ? 'Amanhã' : falta <= 7 ? `Daqui a ${falta} dias` : dataBonita(r.proximaData);
+    const cat = (CATEGORIAS.despesa.find(([n]) => n === r.categoria) || [, '🔁'])[1];
+    lista.append(el('div', { class: 'linha' + (r.ativa === false ? ' pausa' : ''), onclick: () => abrirSubscricao(r) },
+      el('div', { class: 'icone' }, cat),
+      el('div', { class: 'meio' }, el('b', {}, r.nome),
+        el('span', { class: r.ativa !== false && falta <= 3 ? 'alerta' : '' },
+          `${quando} · ${nomeConta[r.contaId] || '—'}${r.notificar ? ' · 🔔' : ''}`)),
+      el('div', { class: 'valor' }, euro(r.valor), el('small', {}, '/' + f.curto))));
+  }
+  zona.append(lista);
+}
+
+async function abrirSubscricao(sub = null) {
+  const contas = (await DB.todos('contas')).sort((a, b) => a.criada - b.criada);
+  if (!contas.length) { abrirConta(); return; }
+  let categoria = sub?.categoria || 'Subscrições';
+
+  const nome = el('input', { placeholder: 'Ex.: Netflix, Ginásio, Telemóvel', value: sub?.nome || '' });
+  const valor = el('input', { inputmode: 'decimal', placeholder: '0,00', value: sub ? String(sub.valor.toFixed(2)).replace('.', ',') : '' });
+  const conta = el('select', {}, ...contas.map((c) =>
+    el('option', { value: c.id, selected: c.id === (sub?.contaId || contas[0].id) }, `${(TIPOS_CONTA[c.tipo] || TIPOS_CONTA.outro).ic}  ${c.nome}`)));
+  const freq = segmentos(Object.entries(FREQUENCIAS).map(([k, f]) => [k, f.nome]), sub?.frequencia || 'mensal');
+  const data = el('input', { type: 'date', value: sub?.proximaData || hojeISO() });
+  const notificar = segmentos([['sim', '🔔 Avisar'], ['nao', 'Sem aviso']], sub?.notificar === false ? 'nao' : 'sim');
+  const estado = segmentos([['ativa', 'Ativa'], ['pausa', 'Em pausa']], sub?.ativa === false ? 'pausa' : 'ativa');
+  const ajudaData = el('div', { class: 'ajuda' });
+  const atualizarAjuda = () => {
+    ajudaData.textContent = data.value && data.value <= hojeISO()
+      ? 'Como a data é hoje (ou já passou), o valor é retirado logo ao guardar.'
+      : 'O valor sai da conta automaticamente nesse dia.';
+  };
+  data.onchange = atualizarAjuda; atualizarAjuda();
+
+  const chips = el('div', { class: 'chips' });
+  for (const [n, ic] of CATEGORIAS.despesa) {
+    const b = el('button', { type: 'button', class: n === categoria ? 'ativo' : '' }, `${ic} ${n}`);
+    b.onclick = () => { categoria = n; chips.querySelectorAll('button').forEach((x) => x.classList.toggle('ativo', x === b)); };
+    chips.append(b);
+  }
+
+  abrirFolha({
+    titulo: sub ? 'Editar subscrição' : 'Nova subscrição',
+    corpo: el('div', {},
+      campo('Nome', nome),
+      el('div', { class: 'dois' }, campo('Valor (€)', valor), campo('Próxima cobrança', data)),
+      ajudaData,
+      campo('Frequência', freq),
+      campo('Sai da conta', conta),
+      campo('Notificação no dia', notificar, 'Recebes uma notificação quando o valor for retirado (precisa das notificações ativas em Conta).'),
+      sub ? campo('Estado', estado) : null,
+      campo('Categoria', chips),
+    ),
+    guardar: async () => {
+      if (!nome.value.trim()) return 'Dá um nome à subscrição.';
+      const v = lerNumero(valor.value);
+      if (!(v > 0)) return 'Indica um valor maior que zero.';
+      if (!data.value) return 'Indica a data da próxima cobrança.';
+      await DB.guardar('recorrentes', {
+        id: sub?.id || DB.novoId(),
+        nome: nome.value.trim(), valor: arred(v), contaId: conta.value,
+        frequencia: freq.valor, proximaData: data.value, dia: lerData(data.value).getDate(),
+        categoria, notificar: notificar.valor === 'sim', ativa: estado.valor !== 'pausa',
+        criada: sub?.criada || Date.now(),
+      });
+      await verificarSubscricoes();
+    },
+    apagar: sub ? () => DB.apagar('recorrentes', sub.id) : null,
+  });
+  if (!sub) setTimeout(() => nome.focus(), 300);
 }

@@ -17,7 +17,9 @@
   // Depósitos a prazo: depois de sincronizar, regista juros dos que terminaram
   async function depositos() {
     try { if (Nuvem.sessao) await Nuvem.sincronizar(); } catch {}
-    if (await verificarDepositos() && !document.querySelector('dialog[open]')) redesenhar();
+    const a = await verificarDepositos();
+    const b = await verificarSubscricoes();
+    if ((a || b) && !document.querySelector('dialog[open]')) redesenhar();
   }
   depositos();
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') depositos(); });

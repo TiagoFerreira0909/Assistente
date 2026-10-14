@@ -1,6 +1,7 @@
 // Função "avisos" (Supabase Edge Function)
-// - Todos os dias (pg_cron) verifica os depósitos a prazo e envia notificações:
-//   7 dias antes, 1 dia antes e quando terminam.
+// - Todos os dias (pg_cron):
+//   · depósitos a prazo: notifica 7 dias antes, 1 dia antes e quando terminam;
+//   · subscrições: regista a cobrança (retira da conta) no dia certo e notifica, se pedido.
 // - ?chave=1  → devolve a chave pública para a app ativar as notificações
 // - ?teste=1  → envia uma notificação de teste para quem a pediu (precisa de sessão)
 // As chaves das notificações (VAPID) são criadas aqui na primeira vez e ficam guardadas
@@ -44,6 +45,73 @@ async function enviar(userId: string, msg: Record<string, string>) {
     }
   }
   return n;
+}
+
+const euro = (v: number) => new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(v);
+function lerData(iso: string) { const [y, m, d] = iso.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)); }
+function paraISO(d: Date) { return d.toISOString().slice(0, 10); }
+function proximaCobranca(iso: string, freq: string, dia?: number) {
+  const d = lerData(iso);
+  if (freq === "semanal") { d.setUTCDate(d.getUTCDate() + 7); return paraISO(d); }
+  const meses = freq === "anual" ? 12 : freq === "trimestral" ? 3 : 1;
+  const n = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + meses, 1));
+  const ultimo = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth() + 1, 0)).getUTCDate();
+  n.setUTCDate(Math.min(dia || d.getUTCDate(), ultimo));
+  return paraISO(n);
+}
+async function jaEnviada(chave: string) {
+  const { error } = await sb.from("notificacoes_enviadas").insert({ chave });
+  return !!error;
+}
+
+// Cobra as subscrições que chegaram ao dia e notifica (se pedido)
+async function processarSubscricoes(hoje: string) {
+  const { data: recs, error } = await sb.from("registos")
+    .select("user_id,id,dados").eq("tabela", "recorrentes").eq("apagado", false);
+  if (error) throw error;
+  const { data: contas } = await sb.from("registos").select("user_id,id,dados").eq("tabela", "contas").eq("apagado", false);
+  const nomeConta = new Map((contas ?? []).map((c) => [`${c.user_id}:${c.id}`, (c.dados as { nome?: string })?.nome || "conta"]));
+  const tresDiasAtras = paraISO(new Date(lerData(hoje).getTime() - 3 * 86400000));
+  let cobradas = 0, enviadas = 0;
+
+  for (const r of recs ?? []) {
+    const d = { ...(r.dados as Record<string, any>) };
+    if (!d || d.ativa === false || !d.proximaData) continue;
+    const datas: string[] = [];
+    let voltas = 0;
+    while (d.proximaData <= hoje && voltas++ < 120) {
+      const id = `sub-${r.id}-${d.proximaData}`;
+      const agora = Date.now();
+      await sb.from("registos").upsert({
+        user_id: r.user_id, tabela: "financas", id, atualizado: agora, apagado: false,
+        dados: { id, tipo: "despesa", valor: d.valor, contaId: d.contaId, contaDestinoId: null,
+          categoria: d.categoria || "Subscrições", data: d.proximaData, descricao: d.nome,
+          criado: agora, automatico: true, subscricaoId: r.id, _t: agora },
+      }, { onConflict: "user_id,tabela,id", ignoreDuplicates: true });
+      datas.push(d.proximaData);
+      d.proximaData = proximaCobranca(d.proximaData, d.frequencia, d.dia);
+      cobradas++;
+    }
+    if (datas.length) {
+      const agora = Date.now(); d._t = agora;
+      await sb.from("registos").update({ dados: d, atualizado: agora })
+        .eq("user_id", r.user_id).eq("tabela", "recorrentes").eq("id", r.id);
+    }
+    if (!d.notificar) continue;
+    // Notifica a cobrança mais recente (feita agora ou já registada pela app hoje)
+    const candidata = datas.length ? datas[datas.length - 1] : hoje;
+    if (candidata < tresDiasAtras) continue;
+    const { data: mov } = await sb.from("registos").select("apagado")
+      .eq("user_id", r.user_id).eq("tabela", "financas").eq("id", `sub-${r.id}-${candidata}`).maybeSingle();
+    if (!mov || mov.apagado) continue;
+    if (await jaEnviada(`${r.user_id}:sub:${r.id}:${candidata}`)) continue;
+    enviadas += await enviar(r.user_id, {
+      titulo: `💳 ${d.nome}`,
+      corpo: `${euro(d.valor)} retirados de ${nomeConta.get(`${r.user_id}:${d.contaId}`) || "conta"}.`,
+      url: APP,
+    });
+  }
+  return { cobradas, enviadas };
 }
 
 Deno.serve(async (req) => {
@@ -95,7 +163,8 @@ Deno.serve(async (req) => {
       if (jaEnviada) continue;
       enviadas += await enviar(c.user_id, { ...msg, url: APP });
     }
-    return json({ ok: true, hoje, enviadas });
+    const subs = await processarSubscricoes(hoje);
+    return json({ ok: true, hoje, enviadas, subscricoes: subs });
   } catch (e) {
     console.error(e);
     return json({ erro: String((e as Error)?.message || e) }, 500);

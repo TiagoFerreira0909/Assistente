@@ -41,5 +41,6 @@ Fecha e abre a app no iPhone (às vezes duas vezes) para apanhar a versão nova.
 - Sem conta ("Continuar sem conta"), os dados ficam só neste aparelho.
 - Módulos por fazer: Lembretes, Datas.
 - Depósitos a prazo: com data de início e fim. Quando terminam, a app regista os juros, renova o prazo (se escolheres "Renova sozinho") e mostra um aviso para confirmares a nova taxa.
+- Subscrições (Finanças → Subscrições): no dia da cobrança o valor sai da conta escolhida — feito pela função na nuvem às 9h e também pela app quando a abres (sem duplicar). Notificação opcional por subscrição.
 - Notificações: ativam-se em Conta (círculo no topo). Chegam 7 dias antes, 1 dia antes e quando um depósito termina (por volta das 9h).
 - Juros: a estimativa usa a taxa anual que indicares e desconta 28% de IRS (podes escolher valor bruto por conta).

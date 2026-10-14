@@ -18,7 +18,7 @@ function svg(nome) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONES[nome]}</svg>`;
 }
 
-const VERSAO_APP = 7; // aparece no ecrã da Conta, para confirmar que o iPhone tem a versão nova
+const VERSAO_APP = 8; // aparece no ecrã da Conta, para confirmar que o iPhone tem a versão nova
 
 // ===== Navegação =====
 const VISTAS = {
@@ -193,11 +193,12 @@ async function vistaInicio() {
 
   // Sugestão para ativar notificações (se houver depósitos a prazo)
   try {
-    if (Nuvem.sessao && fin.contas.some((c) => c.tipo === 'deposito') && Nuvem.notif.suportado()
+    const recs = await DB.todos('recorrentes');
+    if (Nuvem.sessao && (fin.contas.some((c) => c.tipo === 'deposito') || recs.some((r) => r.notificar)) && Nuvem.notif.suportado()
         && localStorage.getItem('dicaNotif') !== 'nao' && await Nuvem.notif.estado() === 'inativo') {
       conteudo.append(el('div', { class: 'aviso dica' },
-        el('div', { class: 'aviso-topo' }, el('span', {}, '🔔'), el('b', {}, 'Avisos dos depósitos')),
-        el('p', {}, 'Ativa as notificações para saberes quando um depósito a prazo vai terminar, mesmo com a app fechada.'),
+        el('div', { class: 'aviso-topo' }, el('span', {}, '🔔'), el('b', {}, 'Ativa as notificações')),
+        el('p', {}, 'Para saberes quando um depósito termina ou uma subscrição é cobrada, mesmo com a app fechada.'),
         el('div', { class: 'aviso-botoes' },
           el('button', { class: 'btn', onclick: () => abrirMinhaConta() }, 'Ativar'),
           el('button', { class: 'btn claro', onclick: () => { localStorage.setItem('dicaNotif', 'nao'); redesenhar(); } }, 'Agora não'))));
@@ -223,6 +224,25 @@ async function vistaInicio() {
     rapida('💰', 'Receita', () => abrirMovimento(null, 'receita')),
     rapida('📝', 'Nota', () => abrirNota()),
   ));
+
+  // Próximas cobranças (subscrições nos próximos 7 dias)
+  const hojeI = hojeISO();
+  const proximas = (await DB.todos('recorrentes'))
+    .filter((r) => r.ativa !== false && diasEntre(hojeI, r.proximaData) <= 7)
+    .sort((a, b) => a.proximaData.localeCompare(b.proximaData));
+  if (proximas.length) {
+    conteudo.append(el('div', { class: 'secao' }, el('h2', {}, 'Próximas cobranças'),
+      el('button', { onclick: () => { finSep = 'subscricoes'; irPara('financas'); } }, 'Ver todas')));
+    const lista = el('div', { class: 'lista' });
+    for (const r of proximas) {
+      const falta = diasEntre(hojeI, r.proximaData);
+      lista.append(el('div', { class: 'linha', onclick: () => abrirSubscricao(r) },
+        el('div', { class: 'icone' }, (CATEGORIAS.despesa.find(([n]) => n === r.categoria) || [, '🔁'])[1]),
+        el('div', { class: 'meio' }, el('b', {}, r.nome), el('span', {}, falta === 0 ? 'Hoje' : falta === 1 ? 'Amanhã' : `Daqui a ${falta} dias`)),
+        el('div', { class: 'valor neg' }, euroSinal(-r.valor))));
+    }
+    conteudo.append(lista);
+  }
 
   // Notas recentes
   const notas = (await DB.todos('notas')).sort((a, b) => b.atualizada - a.atualizada).slice(0, 3);

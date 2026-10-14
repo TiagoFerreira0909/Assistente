@@ -380,3 +380,10 @@ body.com-login { overflow: hidden; }
 .linha .meio span.alerta { color: #d97706; font-weight: 600; }
 
 .aviso.dica { border-left-color: var(--acento); }
+
+/* Subscrições */
+.segmentos.quatro button { font-size: 13px; padding: 8px 2px; }
+.linha.pausa { opacity: .5; }
+/* Textos de ajuda fora de um campo (previsões, avisos curtos) */
+.ajuda { font-size: 13px; color: var(--suave); margin: -4px 4px 14px; line-height: 1.4; }
+.campo .ajuda { margin: 6px 4px 0; }
