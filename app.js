@@ -18,6 +18,8 @@ function svg(nome) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONES[nome]}</svg>`;
 }
 
+const VERSAO_APP = 7; // aparece no ecrã da Conta, para confirmar que o iPhone tem a versão nova
+
 // ===== Navegação =====
 const VISTAS = {
   inicio:    { nome: 'Início',    titulo: () => saudacao(), desenhar: vistaInicio },
@@ -147,12 +149,12 @@ function abrirFolha({ titulo: t, corpo, guardar, apagar, textoGuardar = 'Guardar
       if (!confirm('Tens a certeza que queres apagar?')) return;
       await apagar(); folha.close(); redesenhar();
     } }, 'Apagar') : null);
-  folha.append(
+  folha.append(el('div', { class: 'folha-caixa' },
     el('div', { class: 'folha-topo' }, cancelar, el('b', {}, t), ok),
     corpoEl,
     guardar ? el('div', { class: 'folha-rodape' },
       el('button', { type: 'button', class: 'btn largo', onclick: fazerGuardar }, textoGuardar)) : null,
-  );
+  ));
   // Ao escrever num campo, garante que fica visível acima do teclado
   corpoEl.addEventListener('focusin', (e) => {
     setTimeout(() => e.target.scrollIntoView?.({ block: 'center', behavior: 'smooth' }), 350);
@@ -167,12 +169,13 @@ folha.addEventListener('close', () => document.documentElement.classList.remove(
 folha.addEventListener('click', (e) => { if (e.target === folha) folha.close(); });
 
 // Encaixa a folha no espaço visível (acima do teclado do iPhone)
+// (a folha ocupa exatamente a parte do ecrã que se vê; a caixa encosta em baixo)
 function ajustarFolha() {
   const vv = window.visualViewport;
-  if (!vv) return;
-  const baixo = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-  folha.style.setProperty('--folha-baixo', baixo + 'px');
-  folha.style.setProperty('--folha-altura', Math.round(vv.height - 10) + 'px');
+  const topo = vv ? vv.offsetTop : 0;
+  const altura = vv ? vv.height : window.innerHeight;
+  folha.style.top = Math.round(topo) + 'px';
+  folha.style.height = Math.round(altura) + 'px';
 }
 if (window.visualViewport) {
   visualViewport.addEventListener('resize', ajustarFolha);

@@ -22,5 +22,17 @@
   depositos();
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') depositos(); });
 
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+  if ('serviceWorker' in navigator) {
+    const tinhaVersao = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js').then((r) => r.update()).catch(() => {});
+    // Quando chega uma versão nova da app, recarrega (só se não houver um formulário aberto)
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!tinhaVersao) return;
+      if (document.querySelector('dialog[open]')) folha.addEventListener('close', () => location.reload(), { once: true });
+      else location.reload();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') navigator.serviceWorker.getRegistration().then((r) => r && r.update()).catch(() => {});
+    });
+  }
 })();

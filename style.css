@@ -13,6 +13,7 @@
   --sombra: 0 1px 2px rgba(0,0,0,.04), 0 6px 20px rgba(0,0,0,.05);
   --barra: rgba(255, 255, 255, .78);
   --raio: 20px;
+  --fundo-folha: #f2f2f7;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -28,6 +29,7 @@
     --negativo: #ff4d6d;
     --sombra: none;
     --barra: rgba(22, 22, 24, .78);
+    --fundo-folha: #111113;
   }
 }
 
@@ -236,30 +238,35 @@ main { padding: 4px 16px calc(env(safe-area-inset-bottom) + 120px); }
 .fab svg { width: 28px; height: 28px; }
 
 /* ===== Folha (bottom sheet) ===== */
+/* O <dialog> é um contentor transparente do tamanho do ecrã visível;
+   a caixa (.folha-caixa) encosta em baixo e nunca passa para baixo da barra de estado. */
 html.folha-aberta, html.folha-aberta body { overflow: hidden; }
 .folha {
-  border: 0; padding: 0;
-  position: fixed; left: 0; right: 0; top: auto;
-  bottom: var(--folha-baixo, 0px);
-  margin: 0; width: 100%; max-width: 100%;
-  height: auto;
-  max-height: min(92vh, var(--folha-altura, 92vh));
-  max-height: min(92dvh, var(--folha-altura, 92dvh));
-  background: var(--fundo); color: var(--texto);
-  border-radius: 22px 22px 0 0;
+  position: fixed; left: 0; right: 0; top: 0; bottom: auto;
+  width: 100%; max-width: 100%; height: 100%; max-height: none;
+  margin: 0; border: 0; background: transparent; color: var(--texto);
+  padding: calc(env(safe-area-inset-top) + 12px) 0 0;
   overflow: hidden;
 }
-.folha[open] { display: flex; flex-direction: column; animation: subir .28s cubic-bezier(.2,.9,.3,1); }
+.folha[open] { display: flex; flex-direction: column; justify-content: flex-end; }
+.folha::backdrop { background: rgba(0,0,0,.45); }
+.folha-caixa {
+  display: flex; flex-direction: column;
+  max-height: 100%; min-height: 0;
+  background: var(--fundo-folha);
+  border-radius: 22px 22px 0 0;
+  overflow: hidden;
+  animation: subir .28s cubic-bezier(.2,.9,.3,1);
+}
 @keyframes subir { from { transform: translateY(100%); } to { transform: none; } }
-.folha::backdrop { background: rgba(0,0,0,.4); }
 @media (min-width: 600px) {
-  .folha { left: 50%; right: auto; width: 520px; transform: translateX(-50%); bottom: auto; top: 50%; translate: 0 -50%; border-radius: 22px; }
-  .folha[open] { animation: none; }
+  .folha[open] { justify-content: center; align-items: center; padding: 24px; }
+  .folha-caixa { width: 520px; max-height: 90%; border-radius: 22px; animation: none; }
 }
 .folha-topo {
   flex: none; position: relative;
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-  padding: 16px 16px 10px; background: var(--fundo);
+  padding: 16px 16px 10px; background: var(--fundo-folha);
   border-bottom: 1px solid var(--linha);
 }
 .folha-topo::before {
@@ -281,7 +288,7 @@ html.folha-aberta, html.folha-aberta body { overflow: hidden; }
 .folha-rodape {
   flex: none;
   padding: 10px 16px calc(env(safe-area-inset-bottom) + 10px);
-  background: var(--fundo);
+  background: var(--fundo-folha);
   border-top: 1px solid var(--linha);
 }
 .folha .folha-rodape .btn { margin: 0; }
@@ -303,6 +310,8 @@ html.folha-aberta, html.folha-aberta body { overflow: hidden; }
 .campo .ajuda { font-size: 13px; color: var(--suave); margin: 6px 4px 0; }
 .dois { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px; }
 .campo input[type=date] { min-width: 0; display: block; }
+.campo input, .campo select { min-height: 50px; }
+.campo input[type=date]::-webkit-date-and-time-value { text-align: left; }
 
 .valor-grande {
   text-align: center; font-size: 44px !important; font-weight: 800;

@@ -353,6 +353,7 @@ function abrirMinhaConta() {
         if (!confirm('Terminar sessão? Os dados ficam guardados na nuvem e saem deste aparelho.')) return;
         folha.close(); await Nuvem.sair(); ecraLogin(); redesenhar();
       } }, 'Terminar sessão'),
+      el('div', { class: 'ajuda', style: 'text-align:center;margin-top:8px' }, `Versão ${VERSAO_APP}`),
     ),
   });
 }
