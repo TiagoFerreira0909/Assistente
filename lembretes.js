@@ -152,7 +152,9 @@ function abrirLembrete(l = null) {
   const notas = el('textarea', { placeholder: 'Notas (opcional)', class: 'curta' });
   notas.value = l?.notas || '';
 
-  const data = el('input', { type: 'date', value: l?.data || hojeISO() });
+  // Depois das 23h a próxima hora redonda já é amanhã (senão o lembrete novo nascia atrasado)
+  const amanha = () => { const x = new Date(); x.setDate(x.getDate() + 1); return paraISO(x); };
+  const data = el('input', { type: 'date', value: l?.data || (!l?.hora && proximaHoraRedonda() === '00:00' ? amanha() : hojeISO()) });
   const hora = el('input', { type: 'time', value: l?.hora || proximaHoraRedonda() });
   const temData = segmentos([['sem', 'Sem data'], ['com', 'Com data']], l ? (l.data ? 'com' : 'sem') : 'com', () => atualizar());
   const temHora = segmentos([['dia', 'Dia todo'], ['hora', 'A uma hora']], l ? (l.hora ? 'hora' : 'dia') : 'hora', () => atualizar());
@@ -195,7 +197,8 @@ function abrirLembrete(l = null) {
       await DB.guardar('lembretes', {
         id: l?.id || DB.novoId(),
         titulo: titulo.value.trim(), notas: notas.value.trim(),
-        data: d, hora: h, dia: d ? lerData(d).getDate() : null,
+        // Mantém o dia original (ex.: 31 num lembrete mensal) se a data não foi mudada
+        data: d, hora: h, dia: !d ? null : l?.dia && l.data === d ? l.dia : lerData(d).getDate(),
         repetir: d ? repetir.value : 'nunca',
         notificar: !!d && notificar.valor === 'sim',
         prioridade: +prioridade.valor,

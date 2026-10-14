@@ -1,6 +1,6 @@
 // Service worker: guarda os ficheiros da app para funcionar sem internet.
 // Sempre que alterares ficheiros, muda o número da versão para o iPhone atualizar.
-const VERSAO = 'assistente-v10';
+const VERSAO = 'assistente-v11';
 const FICHEIROS = [
   './', 'index.html', 'style.css', 'db.js', 'app.js', 'financas.js', 'lembretes.js', 'datas.js', 'nuvem.js', 'copia.js', 'arranque.js', 'manifest.json',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
@@ -25,7 +25,9 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(e.request)
       .then((r) => { const c = r.clone(); caches.open(VERSAO).then((k) => k.put(e.request, c)); return r; })
-      .catch(() => caches.match(e.request))
+      // Sem rede: cópia guardada; se for a página (ex.: aberta com ?parâmetros), usa o index.html
+      .catch(() => caches.match(e.request, { ignoreSearch: e.request.mode === 'navigate' })
+        .then((r) => r || (e.request.mode === 'navigate' ? caches.match('index.html') : r)))
   );
 });
 

@@ -18,7 +18,7 @@ function svg(nome) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONES[nome]}</svg>`;
 }
 
-const VERSAO_APP = 10; // aparece no ecrã da Conta, para confirmar que o iPhone tem a versão nova
+const VERSAO_APP = 11; // aparece no ecrã da Conta, para confirmar que o iPhone tem a versão nova
 
 // ===== Navegação =====
 const VISTAS = {
@@ -37,7 +37,14 @@ for (const [chave, v] of Object.entries(VISTAS)) {
   barra.append(b);
 }
 
-async function irPara(nome) {
+// Os desenhos correm em fila: se dois pedidos chegarem ao mesmo tempo (ex.: sincronização
+// e cobranças ao abrir a app), não ficam os dois no ecrã (conteúdo duplicado)
+let filaDesenho = Promise.resolve();
+function irPara(nome) {
+  filaDesenho = filaDesenho.then(() => desenharVista(nome)).catch((e) => console.error(e));
+  return filaDesenho;
+}
+async function desenharVista(nome) {
   vistaAtual = nome;
   barra.querySelectorAll('button').forEach((b) => b.classList.toggle('ativo', b.dataset.vista === nome));
   const v = VISTAS[nome];
@@ -65,9 +72,11 @@ function el(tag, attrs = {}, ...filhos) {
   return e;
 }
 
-const fmtEuro = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' });
-function euro(v) { return fmtEuro.format(Math.round((v || 0) * 100) / 100); }
-function euroSinal(v) { return (v > 0 ? '+' : v < 0 ? '−' : '') + fmtEuro.format(Math.abs(v)); }
+// useGrouping 'always': 5 000,00 € e 10 000,00 € escritos da mesma maneira
+const fmtEuro = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', useGrouping: 'always' });
+// "|| 0" evita mostrar "-0,00 €" quando o resultado é quase zero
+function euro(v) { return fmtEuro.format(Math.round((v || 0) * 100) / 100 || 0); }
+function euroSinal(v) { const r = Math.round((v || 0) * 100) / 100 || 0; return (r > 0 ? '+' : r < 0 ? '−' : '') + fmtEuro.format(Math.abs(r)); }
 
 function hojeISO() {
   const d = new Date();
@@ -119,6 +128,7 @@ function lerNumero(txt) {
   if (typeof txt === 'number') return txt;
   let s = String(txt || '').trim().replace(/\s|€/g, '');
   if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, ''); // "1.500" = mil e quinhentos
   const n = parseFloat(s);
   return isNaN(n) ? NaN : n;
 }
@@ -234,7 +244,7 @@ async function vistaInicio() {
   // Próximas cobranças (subscrições nos próximos 7 dias)
   const hojeI = hojeISO();
   const proximas = (await DB.todos('recorrentes'))
-    .filter((r) => r.ativa !== false && diasEntre(hojeI, r.proximaData) <= 7)
+    .filter((r) => r.ativa !== false && r.proximaData && diasEntre(hojeI, r.proximaData) <= 7)
     .sort((a, b) => a.proximaData.localeCompare(b.proximaData));
   if (proximas.length) {
     conteudo.append(el('div', { class: 'secao' }, el('h2', {}, 'Próximas cobranças'),

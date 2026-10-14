@@ -43,7 +43,8 @@ const Copia = (() => {
   async function ler(f) {
     let copia;
     try { copia = JSON.parse(await f.text()); } catch { throw new Error('Este ficheiro não é uma cópia do Assistente.'); }
-    if (!copia || copia.app !== 'assistente' || typeof copia.dados !== 'object') throw new Error('Este ficheiro não é uma cópia do Assistente.');
+    if (!copia || copia.app !== 'assistente' || !copia.dados || typeof copia.dados !== 'object'
+      || Object.values(copia.dados).some((v) => !Array.isArray(v))) throw new Error('Este ficheiro não é uma cópia do Assistente.');
     if (copia.formato > FORMATO) throw new Error('Esta cópia foi feita por uma versão mais recente da app. Atualiza a app primeiro.');
     return copia;
   }

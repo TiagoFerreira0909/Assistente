@@ -54,16 +54,38 @@ const Nuvem = (() => {
     ls.gravar('sessao', sessao);
   }
 
+  // Renova a sessão uma só vez mesmo que vários pedidos precisem dela ao mesmo tempo
+  // (duas renovações em paralelo com o mesmo refresh_token podiam invalidar a sessão)
+  let renovacao = null;
   async function token() {
     if (!sessao) return null;
     if (Date.now() < sessao.expira - 60000) return sessao.access_token;
-    try {
-      const d = await pedido('/auth/v1/token?grant_type=refresh_token', { metodo: 'POST', corpo: { refresh_token: sessao.refresh_token } });
-      guardarSessao(d);
-      return sessao.access_token;
-    } catch (e) {
-      if (e.status === 400 || e.status === 401) { await sair(true); }
-      throw e;
+    if (!renovacao) {
+      renovacao = (async () => {
+        try {
+          const d = await pedido('/auth/v1/token?grant_type=refresh_token', { metodo: 'POST', corpo: { refresh_token: sessao.refresh_token } });
+          guardarSessao(d);
+          return sessao.access_token;
+        } catch (e) {
+          if (e.status === 400 || e.status === 401) sessaoExpirou();
+          throw e;
+        }
+      })().finally(() => { renovacao = null; });
+    }
+    return renovacao;
+  }
+
+  // A sessão deixou de ser válida: pede para entrar outra vez, mas NÃO apaga os dados do aparelho
+  // (podem ter alterações ainda por enviar; ao voltar a entrar com a mesma conta são enviadas)
+  function sessaoExpirou() {
+    if (sessao?.userId) ls.gravar('ultimoUtilizador', sessao.userId);
+    sessao = null;
+    ls.gravar('sessao', null); ls.gravar('ultimaSync', null);
+    estado = 'parado'; avisar();
+    if (typeof ecraLogin === 'function' && !document.querySelector('.login')) {
+      ecraLogin();
+      const e = document.querySelector('.login .erro');
+      if (e) e.textContent = 'A sessão terminou. Entra outra vez para continuar a sincronizar (os teus dados continuam no aparelho).';
     }
   }
 
@@ -84,8 +106,9 @@ const Nuvem = (() => {
     await pedido('/auth/v1/user', { metodo: 'PUT', corpo: { password: palavra }, token: await token() });
   }
   async function comecarSessao(d) {
-    const antes = sessao?.userId;
+    const antes = sessao?.userId || ls.ler('ultimoUtilizador');
     guardarSessao(d);
+    ls.gravar('ultimoUtilizador', null);
     if (antes && antes !== sessao.userId) { await DB.limparTudo(); ls.gravar('ultimaSync', null); }
     // Primeira vez neste aparelho: envia o que já existe localmente
     if (!ls.ler('ultimaSync')) await DB.marcarTudoPendente();
@@ -136,7 +159,7 @@ const Nuvem = (() => {
     let mudou = false;
     try {
       const t = await token();
-      if (!t) return;
+      if (!t) { estado = 'parado'; avisar(); return; }
 
       // 1) Receber o que mudou na nuvem
       let desde = ls.ler('ultimaSync');
@@ -332,9 +355,9 @@ function abrirMinhaConta() {
     });
     return;
   }
-  const quando = +localStorage.getItem('sincronizadoEm');
   const estado = el('div', { class: 'ajuda' });
   const mostrarEstado = () => {
+    const quando = +localStorage.getItem('sincronizadoEm');
     estado.textContent = Nuvem.estado === 'a sincronizar' ? 'A sincronizar…'
       : Nuvem.estado === 'offline' ? 'Sem internet — as alterações são enviadas quando voltares a ter rede.'
       : Nuvem.estado === 'erro' ? 'Erro ao sincronizar: ' + Nuvem.erro
