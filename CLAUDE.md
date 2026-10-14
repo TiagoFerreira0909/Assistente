@@ -5,9 +5,10 @@ Publicada em GitHub Pages: https://tiagoferreira0909.github.io/Assistente/ (ramo
 Tudo em **português de Portugal**: interface, nomes de variáveis/funções e comentários.
 
 ## Ficheiros
-- `index.html` — esqueleto; carrega os scripts por esta ordem: `db.js`, `app.js`, `financas.js`, `nuvem.js`, `copia.js`, `arranque.js`
+- `index.html` — esqueleto; carrega os scripts por esta ordem: `db.js`, `app.js`, `financas.js`, `lembretes.js`, `nuvem.js`, `copia.js`, `arranque.js`
 - `app.js` — núcleo: navegação (`VISTAS`, `irPara`, `redesenhar`), utilitários (`el`, `euro`, `campo`, `segmentos`, `lerNumero`), folhas (`abrirFolha`), Início e Notas
 - `financas.js` — contas, movimentos, depósitos a prazo (`verificarDepositos`), subscrições (`verificarSubscricoes`), resumo
+- `lembretes.js` — Lembretes (estilo iPhone: data/hora opcionais, repetir, prioridade, aviso por lembrete); notificações locais enquanto a app está aberta (`agendarLembretesLocais`)
 - `nuvem.js` — login Supabase (REST/fetch, sem biblioteca), sincronização, notificações push, ecrãs de conta
 - `copia.js` — cópia de segurança: exportar todos os dados para um ficheiro JSON (partilhar → Guardar em Ficheiros) e repor a partir dele, sem apagar nem duplicar (fica a versão mais recente de cada registo, pelo `_t`)
 - `db.js` — IndexedDB local; cada `DB.guardar/apagar` cria um "pendente" para sincronizar. Tabelas: notas, financas (movimentos), contas, recorrentes (subscrições), lembretes, datas
@@ -28,11 +29,13 @@ Tudo em **português de Portugal**: interface, nomes de variáveis/funções e c
 - Tabelas `subscricoes` (aparelhos com push), `notificacoes_enviadas` e `config_privada` (chaves VAPID, só a função acede).
 - Edge Function `avisos` (verify JWT desligado), corre diariamente às 08:00 UTC via pg_cron:
   depósitos a prazo (avisos 7d/1d/fim) e subscrições (regista a cobrança e notifica se `notificar`).
+  Com `?lembretes=1` (pg_cron a cada 5 min, `supabase/lembretes.sql`) notifica os lembretes que chegaram à hora (hora de Lisboa; sem hora → 09:00).
+  A notificação usa `tag` `lem-<id>-<data>-<hora|dia>`, igual à local, para o iPhone não mostrar duas.
   O código-fonte está em `supabase/functions/avisos/index.ts`; ao alterá-lo é preciso voltar a publicar a função
   (Supabase CLI: `supabase functions deploy avisos --no-verify-jwt --project-ref putvpneoexwblbbqemer`, ou pelo dashboard).
 
 ## Por fazer / ideias
-- Módulos Lembretes e Datas (ainda mostram "Ainda por fazer")
+- Módulo Datas (ainda mostra "Ainda por fazer")
 - Juros automáticos mensais para contas poupança (ex.: Revolut, taxa em RPA)
 - Lembrete periódico para fazer cópia de segurança (a data da última fica em `localStorage.ultimaCopia`)
 - Desligar novos registos no Supabase depois de o Tiago ter conta (só ele usa a app)
