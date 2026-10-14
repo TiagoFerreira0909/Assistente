@@ -6,7 +6,9 @@ Web app para gerir finanças, notas, lembretes e datas, instalável no iPhone.
 - `index.html` — estrutura da página e barra de navegação
 - `style.css` — aspeto (modo claro e escuro automático)
 - `db.js` — base de dados local (IndexedDB), os dados ficam no próprio iPhone
-- `app.js` — lógica da app (navegação, Início, Notas)
+- `app.js` — núcleo da app (navegação, folhas, Início, Notas)
+- `financas.js` — contas, movimentos, juros e resumo mensal
+- `arranque.js` — arranca a app
 - `sw.js` — permite funcionar sem internet
 - `manifest.json` + `icons/` — nome e ícone quando instalada
 
@@ -32,4 +34,5 @@ Fecha e abre a app no iPhone (às vezes duas vezes) para apanhar a versão nova.
 ## Notas importantes
 - Os dados ficam só neste dispositivo. Se apagares a app do ecrã principal, perdes os dados.
   (Próximo passo sugerido: exportar/importar backup, ou sincronizar com Supabase.)
-- Módulos por fazer: Finanças, Lembretes, Datas.
+- Módulos por fazer: Lembretes, Datas.
+- Juros: a estimativa usa a taxa anual que indicares e desconta 28% de IRS (podes escolher valor bruto por conta).

@@ -2,8 +2,9 @@
 // Cada módulo tem a sua "tabela": notas, financas, lembretes, datas.
 const DB = (() => {
   const NOME = 'assistente';
-  const VERSAO = 1;
-  const TABELAS = ['notas', 'financas', 'lembretes', 'datas'];
+  const VERSAO = 2;
+  // 'financas' guarda os movimentos (despesas, receitas, transferências, juros)
+  const TABELAS = ['notas', 'financas', 'contas', 'lembretes', 'datas'];
   let ligacao;
 
   function abrir() {

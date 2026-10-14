@@ -1,48 +1,89 @@
-// ===== Navegação entre módulos =====
+// =====================================================
+//  Núcleo da app: navegação, utilitários, folha, Início e Notas
+// =====================================================
 const conteudo = document.getElementById('conteudo');
 const titulo = document.getElementById('titulo');
+const folha = document.getElementById('folha');
 
-const VISTAS = {
-  inicio:    { titulo: 'Início',    desenhar: vistaInicio },
-  financas:  { titulo: 'Finanças',  desenhar: () => emBreve('💶', 'Receitas, despesas, categorias e gráficos.') },
-  notas:     { titulo: 'Notas',     desenhar: vistaNotas },
-  lembretes: { titulo: 'Lembretes', desenhar: () => emBreve('⏰', 'Lembretes com data e hora e notificações.') },
-  datas:     { titulo: 'Datas',     desenhar: () => emBreve('📅', 'Aniversários, prazos e pagamentos.') },
+// Ícones (SVG) da barra de navegação
+const ICONES = {
+  inicio: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
+  financas: '<rect x="2.5" y="6" width="19" height="14" rx="3"/><path d="M2.5 10h19M16 15h2"/><path d="M5 6l9-3 2 3"/>',
+  notas: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+  lembretes: '<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+  datas: '<rect x="3" y="4.5" width="18" height="16.5" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/>',
+  mais: '<path d="M12 5v14M5 12h14"/>',
 };
+function svg(nome) {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONES[nome]}</svg>`;
+}
 
-document.querySelectorAll('.barra button').forEach((btn) => {
-  btn.addEventListener('click', () => irPara(btn.dataset.vista));
-});
+// ===== Navegação =====
+const VISTAS = {
+  inicio:    { nome: 'Início',    titulo: () => saudacao(), desenhar: vistaInicio },
+  financas:  { nome: 'Finanças',  desenhar: () => vistaFinancas() },
+  notas:     { nome: 'Notas',     desenhar: vistaNotas },
+  lembretes: { nome: 'Lembretes', desenhar: () => emBreve('⏰', 'Lembretes com data, hora e notificações.') },
+  datas:     { nome: 'Datas',     desenhar: () => emBreve('📅', 'Aniversários, prazos e pagamentos.') },
+};
+let vistaAtual = 'inicio';
 
-function irPara(nome) {
-  document.querySelectorAll('.barra button').forEach((b) =>
-    b.classList.toggle('ativo', b.dataset.vista === nome));
-  titulo.textContent = VISTAS[nome].titulo;
-  conteudo.innerHTML = '';
+const barra = document.getElementById('barra');
+for (const [chave, v] of Object.entries(VISTAS)) {
+  const b = el('button', { 'data-vista': chave, onclick: () => irPara(chave) });
+  b.innerHTML = svg(chave) + v.nome;
+  barra.append(b);
+}
+
+async function irPara(nome) {
+  vistaAtual = nome;
+  barra.querySelectorAll('button').forEach((b) => b.classList.toggle('ativo', b.dataset.vista === nome));
+  const v = VISTAS[nome];
+  titulo.textContent = v.titulo ? v.titulo() : v.nome;
   document.querySelectorAll('.fab').forEach((f) => f.remove());
-  VISTAS[nome].desenhar();
-  localStorage.setItem('ultimaVista', nome);
+  conteudo.innerHTML = '';
+  await v.desenhar();
+  try { localStorage.setItem('ultimaVista', nome); } catch {}
+}
+function redesenhar() {
+  const y = window.scrollY;
+  irPara(vistaAtual).then(() => window.scrollTo(0, y));
 }
 
 // ===== Utilitários =====
 function el(tag, attrs = {}, ...filhos) {
   const e = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === undefined || v === null || v === false) continue;
     if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
-    else e.setAttribute(k, v);
+    else if (k === 'class') e.className = v;
+    else e.setAttribute(k, v === true ? '' : v);
   }
-  for (const f of filhos) e.append(f);
+  for (const f of filhos.flat()) if (f !== null && f !== undefined && f !== false) e.append(f);
   return e;
 }
 
+const fmtEuro = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' });
+function euro(v) { return fmtEuro.format(Math.round((v || 0) * 100) / 100); }
+function euroSinal(v) { return (v > 0 ? '+' : v < 0 ? '−' : '') + fmtEuro.format(Math.abs(v)); }
+
+function hojeISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function maiuscula(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 function dataCurta(ts) {
-  return new Date(ts).toLocaleDateString('pt-PT', {
-    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-  });
+  return new Date(ts).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+function saudacao() {
+  const h = new Date().getHours();
+  return h < 6 ? 'Boa noite' : h < 13 ? 'Bom dia' : h < 20 ? 'Boa tarde' : 'Boa noite';
 }
 
 function botaoAdicionar(acao) {
-  document.body.append(el('button', { class: 'fab', onclick: acao, 'aria-label': 'Adicionar' }, '+'));
+  const b = el('button', { class: 'fab', onclick: acao, 'aria-label': 'Adicionar' });
+  b.innerHTML = svg('mais');
+  document.body.append(b);
 }
 
 function emBreve(icone, texto) {
@@ -50,41 +91,102 @@ function emBreve(icone, texto) {
     el('div', {}, icone), el('p', {}, texto), el('p', {}, 'Ainda por fazer.')));
 }
 
-// ===== Início =====
-async function vistaInicio() {
-  const notas = await DB.todos('notas');
-  let hoje = new Date().toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
-  hoje = hoje.charAt(0).toUpperCase() + hoje.slice(1);
-
-  conteudo.append(
-    el('p', { style: 'color:var(--suave);margin:0 0 14px' }, hoje),
-    el('div', { class: 'grelha' },
-      resumo('📝 Notas', notas.length, 'notas'),
-      resumo('⏰ Lembretes', '–', 'lembretes'),
-      resumo('💶 Saldo do mês', '–', 'financas'),
-      resumo('📅 Próximas datas', '–', 'datas'),
-    ),
-  );
-
-  const recentes = notas.sort((a, b) => b.atualizada - a.atualizada).slice(0, 3);
-  if (recentes.length) {
-    conteudo.append(el('h3', { style: 'margin:22px 0 10px' }, 'Notas recentes'));
-    recentes.forEach((n) => conteudo.append(cartaoNota(n)));
+// Controlo segmentado: devolve o elemento; o valor está em .valor
+function segmentos(opcoes, valor, aoMudar) {
+  const caixa = el('div', { class: 'segmentos' });
+  caixa.valor = valor;
+  for (const [v, texto] of opcoes) {
+    const b = el('button', { type: 'button', class: v === valor ? 'ativo' : '' }, texto);
+    b.onclick = () => {
+      caixa.valor = v;
+      caixa.querySelectorAll('button').forEach((x) => x.classList.toggle('ativo', x === b));
+      aoMudar && aoMudar(v);
+    };
+    caixa.append(b);
   }
+  return caixa;
 }
 
-function resumo(nome, valor, vista) {
-  return el('div', { class: 'cartao clicavel', onclick: () => irPara(vista) },
-    el('small', {}, nome), el('div', { class: 'numero' }, String(valor)));
+function campo(rotulo, controlo, ajuda) {
+  return el('div', { class: 'campo' }, rotulo ? el('label', {}, rotulo) : null, controlo,
+    ajuda ? el('div', { class: 'ajuda' }, ajuda) : null);
+}
+
+// Converte "1.234,56" ou "1234.56" num número
+function lerNumero(txt) {
+  if (typeof txt === 'number') return txt;
+  let s = String(txt || '').trim().replace(/\s|€/g, '');
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(s);
+  return isNaN(n) ? NaN : n;
+}
+
+// ===== Folha (janela que sobe de baixo) =====
+// abrirFolha({ titulo, corpo, guardar: async () => true|'mensagem de erro', apagar })
+function abrirFolha({ titulo: t, corpo, guardar, apagar, textoGuardar = 'Guardar' }) {
+  folha.innerHTML = '';
+  const erro = el('div', { class: 'erro' });
+  const cancelar = el('button', { type: 'button', onclick: () => folha.close() }, 'Cancelar');
+  const ok = guardar
+    ? el('button', { type: 'button', class: 'guardar', onclick: async () => {
+        const r = await guardar();
+        if (r === true || r === undefined) { folha.close(); redesenhar(); }
+        else erro.textContent = r;
+      } }, textoGuardar)
+    : el('span');
+  folha.append(
+    el('div', { class: 'folha-topo' }, cancelar, el('b', {}, t), ok),
+    el('div', { class: 'folha-corpo' }, erro, corpo,
+      apagar ? el('button', { type: 'button', class: 'btn perigo', onclick: async () => {
+        if (!confirm('Tens a certeza que queres apagar?')) return;
+        await apagar(); folha.close(); redesenhar();
+      } }, 'Apagar') : null),
+  );
+  folha.showModal();
+  folha.scrollTop = 0;
+}
+// Fecha ao tocar fora da folha
+folha.addEventListener('click', (e) => { if (e.target === folha) folha.close(); });
+
+// ===== Início =====
+async function vistaInicio() {
+  const hoje = maiuscula(new Date().toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' }));
+  conteudo.append(el('p', { class: 'subtitulo' }, hoje));
+
+  // Resumo financeiro (vem do financas.js)
+  const r = await resumoFinanceiro();
+  conteudo.append(el('div', { class: 'destaque toque', onclick: () => irPara('financas') },
+    el('small', {}, 'Património total'),
+    el('div', { class: 'grande' }, euro(r.total)),
+    el('div', { class: 'linha-dupla' },
+      el('div', {}, el('small', {}, 'Entradas este mês'), el('b', {}, euro(r.receitas))),
+      el('div', {}, el('small', {}, 'Saídas este mês'), el('b', {}, euro(r.despesas))),
+    ),
+  ));
+
+  // Ações rápidas
+  const rapida = (ic, texto, acao) =>
+    el('button', { class: 'toque', onclick: acao }, el('span', { class: 'ic' }, ic), texto);
+  conteudo.append(el('div', { class: 'rapidas' },
+    rapida('💸', 'Despesa', () => abrirMovimento(null, 'despesa')),
+    rapida('💰', 'Receita', () => abrirMovimento(null, 'receita')),
+    rapida('📝', 'Nota', () => abrirNota()),
+  ));
+
+  // Notas recentes
+  const notas = (await DB.todos('notas')).sort((a, b) => b.atualizada - a.atualizada).slice(0, 3);
+  if (notas.length) {
+    conteudo.append(el('div', { class: 'secao' }, el('h2', {}, 'Notas recentes'),
+      el('button', { onclick: () => irPara('notas') }, 'Ver todas')));
+    notas.forEach((n) => conteudo.append(cartaoNota(n)));
+  }
 }
 
 // ===== Notas =====
 let filtroNotas = '';
 
 async function vistaNotas() {
-  const pesquisa = el('input', {
-    class: 'pesquisa', type: 'search', placeholder: 'Pesquisar notas', value: filtroNotas,
-  });
+  const pesquisa = el('input', { class: 'pesquisa', type: 'search', placeholder: 'Pesquisar', value: filtroNotas });
   const lista = el('div');
   pesquisa.addEventListener('input', () => { filtroNotas = pesquisa.value; desenharLista(); });
   conteudo.append(pesquisa, lista);
@@ -97,61 +199,39 @@ async function vistaNotas() {
       .sort((a, b) => b.atualizada - a.atualizada);
     lista.innerHTML = '';
     if (!notas.length) {
-      lista.append(el('div', { class: 'vazio' }, termo ? 'Nenhuma nota encontrada.' : 'Ainda não tens notas. Toca em + para criar.'));
+      lista.append(el('div', { class: 'vazio' },
+        el('div', { class: 'grande-ic' }, '📝'),
+        termo ? 'Nenhuma nota encontrada.' : 'Ainda não tens notas. Toca em + para criar.'));
       return;
     }
     notas.forEach((n) => lista.append(cartaoNota(n)));
   }
-  desenharLista();
+  await desenharLista();
 }
 
 function cartaoNota(n) {
-  return el('div', { class: 'cartao clicavel', onclick: () => abrirNota(n) },
+  return el('div', { class: 'cartao nota toque', onclick: () => abrirNota(n) },
     el('h3', {}, n.titulo || 'Sem título'),
-    el('p', {}, n.texto || ''),
+    n.texto ? el('p', {}, n.texto) : null,
     el('small', {}, dataCurta(n.atualizada)));
 }
 
-const dlgNota = document.getElementById('dlgNota');
-const notaTitulo = document.getElementById('notaTitulo');
-const notaTexto = document.getElementById('notaTexto');
-const btnApagarNota = document.getElementById('btnApagarNota');
-let notaAtual = null;
-
 function abrirNota(nota = null) {
-  notaAtual = nota;
-  notaTitulo.value = nota ? nota.titulo : '';
-  notaTexto.value = nota ? nota.texto : '';
-  btnApagarNota.style.visibility = nota ? 'visible' : 'hidden';
-  dlgNota.showModal();
-  if (!nota) notaTitulo.focus();
-}
-
-dlgNota.addEventListener('close', async () => {
-  if (dlgNota.returnValue !== 'guardar') return;
-  const t = notaTitulo.value.trim();
-  const x = notaTexto.value.trim();
-  if (!t && !x) return;
-  await DB.guardar('notas', {
-    id: notaAtual ? notaAtual.id : DB.novoId(),
-    titulo: t,
-    texto: x,
-    criada: notaAtual ? notaAtual.criada : Date.now(),
-    atualizada: Date.now(),
+  const t = el('input', { placeholder: 'Título', value: nota ? nota.titulo : '' });
+  const x = el('textarea', { placeholder: 'Escreve aqui…' });
+  x.value = nota ? nota.texto : '';
+  abrirFolha({
+    titulo: nota ? 'Editar nota' : 'Nova nota',
+    corpo: el('div', {}, campo(null, t), campo(null, x)),
+    guardar: async () => {
+      const titulo = t.value.trim(), texto = x.value.trim();
+      if (!titulo && !texto) return 'A nota está vazia.';
+      await DB.guardar('notas', {
+        id: nota ? nota.id : DB.novoId(), titulo, texto,
+        criada: nota ? nota.criada : Date.now(), atualizada: Date.now(),
+      });
+    },
+    apagar: nota ? () => DB.apagar('notas', nota.id) : null,
   });
-  irPara(localStorage.getItem('ultimaVista') || 'notas');
-});
-
-btnApagarNota.addEventListener('click', async () => {
-  if (!notaAtual || !confirm('Apagar esta nota?')) return;
-  await DB.apagar('notas', notaAtual.id);
-  dlgNota.close('apagada');
-  irPara(localStorage.getItem('ultimaVista') || 'notas');
-});
-
-// ===== Arranque =====
-irPara(localStorage.getItem('ultimaVista') || 'inicio');
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
+  if (!nota) setTimeout(() => t.focus(), 300);
 }

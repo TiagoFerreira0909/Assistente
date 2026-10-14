@@ -1,8 +1,8 @@
 // Service worker: guarda os ficheiros da app para funcionar sem internet.
 // Sempre que alterares ficheiros, muda o número da versão para o iPhone atualizar.
-const VERSAO = 'assistente-v1';
+const VERSAO = 'assistente-v2';
 const FICHEIROS = [
-  './', 'index.html', 'style.css', 'db.js', 'app.js', 'manifest.json',
+  './', 'index.html', 'style.css', 'db.js', 'app.js', 'financas.js', 'arranque.js', 'manifest.json',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
 
@@ -19,6 +19,12 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
+// Tenta a internet primeiro (para apanhar atualizações); sem rede usa a cópia guardada
 self.addEventListener('fetch', (e) => {
-  e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request)));
+  if (e.request.method !== 'GET') return;
+  e.respondWith(
+    fetch(e.request)
+      .then((r) => { const c = r.clone(); caches.open(VERSAO).then((k) => k.put(e.request, c)); return r; })
+      .catch(() => caches.match(e.request))
+  );
 });
