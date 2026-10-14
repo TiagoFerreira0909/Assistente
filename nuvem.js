@@ -319,7 +319,19 @@ function fecharLogin() {
 
 function abrirMinhaConta() {
   const s = Nuvem.sessao;
-  if (!s) { ecraLogin(); return; }
+  if (!s) {
+    abrirFolha({
+      titulo: 'Conta',
+      corpo: el('div', {},
+        el('div', { class: 'ajuda', style: 'margin:0 4px 10px' }, 'Estás a usar a app sem conta. Com conta, os dados ficam guardados na nuvem e em qualquer aparelho.'),
+        el('button', { class: 'btn largo', onclick: () => { folha.close(); ecraLogin(); } }, 'Entrar ou criar conta'),
+        el('div', { class: 'secao' }, el('h2', {}, 'Cópia de segurança')),
+        zonaCopia(),
+        el('div', { class: 'ajuda', style: 'text-align:center;margin-top:8px' }, `Versão ${VERSAO_APP}`),
+      ),
+    });
+    return;
+  }
   const quando = +localStorage.getItem('sincronizadoEm');
   const estado = el('div', { class: 'ajuda' });
   const mostrarEstado = () => {
@@ -341,6 +353,8 @@ function abrirMinhaConta() {
       el('button', { class: 'btn claro largo', onclick: () => Nuvem.sincronizar() }, 'Sincronizar agora'),
       el('div', { class: 'secao' }, el('h2', {}, 'Notificações')),
       zonaNotificacoes(),
+      el('div', { class: 'secao' }, el('h2', {}, 'Cópia de segurança')),
+      zonaCopia(),
       el('div', { class: 'secao' }, el('h2', {}, 'Mudar palavra-passe')),
       campo(null, novaPw),
       el('button', { class: 'btn claro largo', onclick: async (e) => {

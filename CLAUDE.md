@@ -5,10 +5,11 @@ Publicada em GitHub Pages: https://tiagoferreira0909.github.io/Assistente/ (ramo
 Tudo em **português de Portugal**: interface, nomes de variáveis/funções e comentários.
 
 ## Ficheiros
-- `index.html` — esqueleto; carrega os scripts por esta ordem: `db.js`, `app.js`, `financas.js`, `nuvem.js`, `arranque.js`
+- `index.html` — esqueleto; carrega os scripts por esta ordem: `db.js`, `app.js`, `financas.js`, `nuvem.js`, `copia.js`, `arranque.js`
 - `app.js` — núcleo: navegação (`VISTAS`, `irPara`, `redesenhar`), utilitários (`el`, `euro`, `campo`, `segmentos`, `lerNumero`), folhas (`abrirFolha`), Início e Notas
 - `financas.js` — contas, movimentos, depósitos a prazo (`verificarDepositos`), subscrições (`verificarSubscricoes`), resumo
 - `nuvem.js` — login Supabase (REST/fetch, sem biblioteca), sincronização, notificações push, ecrãs de conta
+- `copia.js` — cópia de segurança: exportar todos os dados para um ficheiro JSON (partilhar → Guardar em Ficheiros) e repor a partir dele, sem apagar nem duplicar (fica a versão mais recente de cada registo, pelo `_t`)
 - `db.js` — IndexedDB local; cada `DB.guardar/apagar` cria um "pendente" para sincronizar. Tabelas: notas, financas (movimentos), contas, recorrentes (subscrições), lembretes, datas
 - `sw.js` — service worker (rede primeiro, cache como reserva) + push
 - `supabase/` — SQL aplicado e código da Edge Function `avisos`
@@ -33,4 +34,5 @@ Tudo em **português de Portugal**: interface, nomes de variáveis/funções e c
 ## Por fazer / ideias
 - Módulos Lembretes e Datas (ainda mostram "Ainda por fazer")
 - Juros automáticos mensais para contas poupança (ex.: Revolut, taxa em RPA)
+- Lembrete periódico para fazer cópia de segurança (a data da última fica em `localStorage.ultimaCopia`)
 - Desligar novos registos no Supabase depois de o Tiago ter conta (só ele usa a app)
