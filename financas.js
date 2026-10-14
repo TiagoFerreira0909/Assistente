@@ -236,7 +236,7 @@ function desenharContas(zona, { contas, saldos }) {
     lista.append(el('div', { class: 'linha', onclick: () => abrirConta(c, s) },
       el('div', { class: 'icone' }, t.ic),
       el('div', { class: 'meio' }, el('b', {}, c.nome), el('span', { class: alerta ? 'alerta' : '' }, detalhe)),
-      el('div', { class: 'valor' + (s < 0 ? ' neg' : '') }, euro(s))));
+      el('div', { class: 'valor' + (s < -0.004 ? ' neg' : '') }, euro(s))));
   }
   zona.append(lista);
 }
@@ -318,12 +318,18 @@ async function abrirConta(conta = null, saldoAtual = 0) {
         dataInicio: inicio.value, dataFim: fim.value,
         renovar: renovar.valor === 'sim', contaJurosId: pagosEm.value || null,
       });
+      // Depósito já terminado e com as mesmas datas: continua terminado (senão o aviso voltava a aparecer)
+      if (ehDeposito && conta?.terminado && conta.dataInicio === inicio.value && conta.dataFim === fim.value && renovar.valor !== 'sim') nova.terminado = true;
       await DB.guardar('contas', nova); // ao guardar, o aviso fica resolvido
       if (ehDeposito && await verificarDepositos()) setTimeout(redesenhar, 50);
     },
     apagar: conta ? async () => {
       const movs = await DB.todos('financas');
       for (const m of movs) if (m.contaId === conta.id || m.contaDestinoId === conta.id) await DB.apagar('financas', m.id);
+      // As subscrições desta conta deixam de existir (senão continuavam a ser cobradas numa conta que já não existe)
+      for (const r of await DB.todos('recorrentes')) if (r.contaId === conta.id) await DB.apagar('recorrentes', r.id);
+      // Depósitos que pagavam juros nesta conta passam a recebê-los no próprio depósito
+      for (const c of outras) if (c.contaJurosId === conta.id) await DB.guardar('contas', { ...c, contaJurosId: null });
       await DB.apagar('contas', conta.id);
     } : null,
   });
@@ -522,8 +528,9 @@ function proximaCobranca(iso, freq, dia) {
 async function verificarSubscricoes() {
   const hoje = hojeISO();
   let mudou = false;
+  const contas = new Set((await DB.todos('contas')).map((c) => c.id));
   for (const r of await DB.todos('recorrentes')) {
-    if (r.ativa === false || !r.proximaData || r.proximaData > hoje) continue;
+    if (r.ativa === false || !r.proximaData || r.proximaData > hoje || !contas.has(r.contaId)) continue;
     const sub = { ...r };
     let voltas = 0;
     while (sub.proximaData <= hoje && voltas++ < 120) {
@@ -599,6 +606,14 @@ async function abrirSubscricao(sub = null) {
   const notificar = segmentos([['sim', '🔔 Avisar'], ['nao', 'Sem aviso']], sub?.notificar === false ? 'nao' : 'sim');
   const estado = segmentos([['ativa', 'Ativa'], ['pausa', 'Em pausa']], sub?.ativa === false ? 'pausa' : 'ativa');
   const ajudaData = el('div', { class: 'ajuda' });
+  // Ao retomar uma subscrição que esteve em pausa, salta as cobranças do tempo em pausa
+  // (passa a próxima cobrança para hoje ou depois, em vez de cobrar todos os meses em atraso)
+  estado.addEventListener('click', () => {
+    if (estado.valor !== 'ativa' || sub?.ativa !== false || !data.value) return;
+    let d = data.value, voltas = 0;
+    while (d < hojeISO() && voltas++ < 1000) d = proximaCobranca(d, freq.valor, sub.dia);
+    if (d !== data.value) { data.value = d; atualizarAjuda(); }
+  });
   const atualizarAjuda = () => {
     ajudaData.textContent = data.value && data.value <= hojeISO()
       ? 'Como a data é hoje (ou já passou), o valor é retirado logo ao guardar.'
@@ -633,7 +648,9 @@ async function abrirSubscricao(sub = null) {
       await DB.guardar('recorrentes', {
         id: sub?.id || DB.novoId(),
         nome: nome.value.trim(), valor: arred(v), contaId: conta.value,
-        frequencia: freq.valor, proximaData: data.value, dia: lerData(data.value).getDate(),
+        frequencia: freq.valor, proximaData: data.value,
+        // Mantém o dia original (ex.: 31) se a data não foi mudada; senão um 31 que passou a 30 ficava 30 para sempre
+        dia: sub?.dia && sub.proximaData === data.value ? sub.dia : lerData(data.value).getDate(),
         categoria, notificar: notificar.valor === 'sim', ativa: estado.valor !== 'pausa',
         criada: sub?.criada || Date.now(),
       });

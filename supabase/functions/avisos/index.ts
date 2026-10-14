@@ -78,6 +78,8 @@ async function processarSubscricoes(hoje: string) {
   for (const r of recs ?? []) {
     const d = { ...(r.dados as Record<string, any>) };
     if (!d || d.ativa === false || !d.proximaData) continue;
+    // Conta já apagada: não cobra (o movimento ficava numa conta que não existe)
+    if (!nomeConta.has(`${r.user_id}:${d.contaId}`)) continue;
     const datas: string[] = [];
     let voltas = 0;
     while (d.proximaData <= hoje && voltas++ < 120) {
@@ -159,7 +161,7 @@ Deno.serve(async (req) => {
       if (!data?.user) return json({ erro: "Sem sessão" }, 401);
       const n = await enviar(data.user.id, {
         titulo: "Notificações ativadas ✓",
-        corpo: "Vais ser avisado quando um depósito a prazo estiver a terminar.",
+        corpo: "Vais receber aqui os lembretes, as cobranças das subscrições e os avisos dos depósitos a prazo.",
         url: APP,
       });
       return json({ enviadas: n });
