@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Assistente">
+  <title>Assistente</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topo">
+    <h1 id="titulo">Início</h1>
+  </header>
+
+  <main id="conteudo"></main>
+
+  <nav class="barra">
+    <button data-vista="inicio" class="ativo"><span>🏠</span>Início</button>
+    <button data-vista="financas"><span>💶</span>Finanças</button>
+    <button data-vista="notas"><span>📝</span>Notas</button>
+    <button data-vista="lembretes"><span>⏰</span>Lembretes</button>
+    <button data-vista="datas"><span>📅</span>Datas</button>
+  </nav>
+
+  <!-- Janela para criar/editar nota -->
+  <dialog id="dlgNota">
+    <form method="dialog" id="formNota">
+      <input id="notaTitulo" placeholder="Título" autocomplete="off">
+      <textarea id="notaTexto" placeholder="Escreve aqui..." rows="10"></textarea>
+      <div class="acoes">
+        <button type="button" id="btnApagarNota" class="perigo">Apagar</button>
+        <span class="espaco"></span>
+        <button value="cancelar" formnovalidate>Cancelar</button>
+        <button value="guardar" class="primario">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="db.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
