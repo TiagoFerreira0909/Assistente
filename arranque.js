@@ -19,6 +19,7 @@
     try { if (Nuvem.sessao) await Nuvem.sincronizar(); } catch {}
     const a = await verificarDepositos();
     const b = await verificarSubscricoes();
+    agendarLembretesLocais();
     if ((a || b) && !document.querySelector('dialog[open]')) redesenhar();
   }
   depositos();

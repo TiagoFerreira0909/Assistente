@@ -1,8 +1,8 @@
 // Service worker: guarda os ficheiros da app para funcionar sem internet.
 // Sempre que alterares ficheiros, muda o número da versão para o iPhone atualizar.
-const VERSAO = 'assistente-v8';
+const VERSAO = 'assistente-v9';
 const FICHEIROS = [
-  './', 'index.html', 'style.css', 'db.js', 'app.js', 'financas.js', 'nuvem.js', 'arranque.js', 'manifest.json',
+  './', 'index.html', 'style.css', 'db.js', 'app.js', 'financas.js', 'lembretes.js', 'nuvem.js', 'arranque.js', 'manifest.json',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
 
@@ -37,6 +37,7 @@ self.addEventListener('push', (e) => {
     body: d.corpo || '',
     icon: 'icons/icon-192.png',
     badge: 'icons/icon-192.png',
+    tag: d.tag || undefined,
     data: { url: d.url || './' },
   }));
 });

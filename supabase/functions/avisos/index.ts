@@ -2,6 +2,7 @@
 // - Todos os dias (pg_cron):
 //   · depósitos a prazo: notifica 7 dias antes, 1 dia antes e quando terminam;
 //   · subscrições: regista a cobrança (retira da conta) no dia certo e notifica, se pedido.
+// - ?lembretes=1 (pg_cron, a cada 5 minutos) → notifica os lembretes que chegaram à hora
 // - ?chave=1  → devolve a chave pública para a app ativar as notificações
 // - ?teste=1  → envia uma notificação de teste para quem a pediu (precisa de sessão)
 // As chaves das notificações (VAPID) são criadas aqui na primeira vez e ficam guardadas
@@ -114,6 +115,35 @@ async function processarSubscricoes(hoje: string) {
   return { cobradas, enviadas };
 }
 
+// Lembretes com aviso cuja hora já chegou (hora de Lisboa). Sem hora → avisa às 09:00.
+// Cada lembrete/data/hora só é notificado uma vez (notificacoes_enviadas); só avisa até 1h depois (não avisa lembretes antigos).
+async function processarLembretes() {
+  const fmt = (d: Date) => new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Lisbon", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).format(d); // "2026-10-14 21:30"
+  const agora = fmt(new Date());
+  const limite = fmt(new Date(Date.now() - 3600000));
+  const { data: lems, error } = await sb.from("registos")
+    .select("user_id,id,dados").eq("tabela", "lembretes").eq("apagado", false)
+    .eq("dados->>notificar", "true").eq("dados->>concluido", "false");
+  if (error) throw error;
+  let enviadas = 0;
+  for (const l of lems ?? []) {
+    const d = l.dados as { titulo: string; notas?: string; data?: string; hora?: string };
+    if (!d?.data) continue;
+    const quando = `${d.data} ${d.hora || "09:00"}`;
+    if (quando > agora || quando < limite) continue;
+    if (await jaEnviada(`${l.user_id}:lem:${l.id}:${d.data}:${d.hora || "dia"}`)) continue;
+    enviadas += await enviar(l.user_id, {
+      titulo: `⏰ ${d.titulo}`,
+      corpo: d.notas || (d.hora ? `Hoje às ${d.hora}` : "Hoje"),
+      tag: `lem-${l.id}-${d.data}-${d.hora || "dia"}`,
+      url: APP,
+    });
+  }
+  return { enviadas };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -134,6 +164,8 @@ Deno.serve(async (req) => {
       });
       return json({ enviadas: n });
     }
+
+    if (url.searchParams.has("lembretes")) return json({ ok: true, lembretes: await processarLembretes() });
 
     // Rotina diária
     const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Lisbon" }).format(new Date());

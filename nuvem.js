@@ -399,7 +399,7 @@ function zonaNotificacoes() {
     if (e === 'nao-suportado') { texto.textContent = 'Este aparelho/browser não suporta notificações.'; botao.style.display = 'none'; return; }
     if (e === 'bloqueado') { texto.textContent = 'As notificações estão bloqueadas. Ativa-as nas Definições do iPhone → Notificações → Assistente.'; botao.style.display = 'none'; return; }
     if (e === 'ativo') {
-      texto.textContent = '✅ Ativas neste aparelho. Avisamos 7 dias antes, 1 dia antes e quando um depósito a prazo termina.';
+      texto.textContent = '✅ Ativas neste aparelho. Recebes os lembretes com aviso, as cobranças das subscrições e os avisos dos depósitos a prazo.';
       botao.textContent = 'Enviar notificação de teste';
       botao.onclick = async () => {
         botao.textContent = 'A enviar…';
@@ -410,11 +410,11 @@ function zonaNotificacoes() {
       extra.onclick = async () => { await Nuvem.notif.desativar(); desenhar(); };
       return;
     }
-    texto.textContent = 'Recebe um aviso no telemóvel quando um depósito a prazo estiver a terminar, mesmo com a app fechada.';
+    texto.textContent = 'Recebe no telemóvel os lembretes à hora marcada e os avisos de depósitos e subscrições, mesmo com a app fechada.';
     botao.textContent = 'Ativar notificações';
     botao.onclick = async () => {
       botao.textContent = 'A ativar…';
-      try { await Nuvem.notif.ativar(); await desenhar(); }
+      try { await Nuvem.notif.ativar(); agendarLembretesLocais(); await desenhar(); }
       catch (x) { botao.textContent = 'Ativar notificações'; texto.textContent = x.message; }
     };
   }
