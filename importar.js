@@ -143,12 +143,15 @@ async function lerFicheirosExtrato(ficheiros, aoProgresso) {
   const movimentos = [];
   let saldoFinal = null;
   const avisos = [];
+  const textos = [];   // texto tirado dos PDF/prints (para "Ver o texto lido")
   for (const f of ficheiros) {
     const nome = f.name.toLowerCase();
     let r = null;
     if (f.type.startsWith('image/') || /\.(jpe?g|png|heic|heif|webp)$/.test(nome)) {
       aoProgresso(`A ler ${f.name}…`);
-      r = lerTextoExtrato(await textoDaImagem(f, aoProgresso));
+      const t = await textoDaImagem(f, aoProgresso);
+      textos.push(`— ${f.name} —\n${t}`);
+      r = lerTextoExtrato(t);
     } else if (f.type === 'application/pdf' || nome.endsWith('.pdf')) {
       aoProgresso(`A abrir ${f.name}…`);
       const pdf = await abrirPDF(f);
@@ -160,6 +163,7 @@ async function lerFicheirosExtrato(ficheiros, aoProgresso) {
         for (let i = 0; i < telas.length; i++) { aoProgresso(`A ler a página ${i + 1} de ${telas.length}…`); textos.push(await ocr(telas[i], aoProgresso)); }
         texto = textos.join('\n');
       }
+      textos.push(`— ${f.name} —\n${texto}`);
       r = lerTextoExtrato(texto);
     } else if (/\.xlsx$/.test(nome)) {
       throw new Error(`O ficheiro ${f.name} é Excel (.xlsx). Exporta do banco em CSV ou PDF.`);
@@ -182,7 +186,17 @@ async function lerFicheirosExtrato(ficheiros, aoProgresso) {
         categoria: cats.includes(m.categoria) ? m.categoria : sugerirCategoria(tipo, descricao) };
     });
   const observacoes = avisos.length && limpos.length ? `Atenção: ${avisos.join('; ')}.` : (avisos.length ? 'experimenta um print mais nítido ou o ficheiro CSV/PDF do banco' : '');
-  return { movimentos: limpos, saldoFinal, observacoes };
+  return { movimentos: limpos, saldoFinal, observacoes, textoLido: textos.join('\n\n').trim() };
+}
+
+// Mostra o texto que o telemóvel leu (para perceber o que falhou num print/PDF e copiar)
+function blocoTextoLido(texto) {
+  if (!texto) return null;
+  const pre = el('pre', { class: 'texto-lido' }, texto);
+  const copiar = el('button', { type: 'button', class: 'link', onclick: async () => {
+    try { await navigator.clipboard.writeText(texto); copiar.textContent = 'Copiado ✓'; } catch { copiar.textContent = 'Seleciona o texto e copia'; }
+  } }, 'Copiar texto');
+  return el('details', { class: 'detalhe-texto' }, el('summary', {}, 'Ver o texto lido'), pre, copiar);
 }
 
 // ----- Ids e duplicados -----
@@ -270,7 +284,11 @@ async function abrirImportar() {
       try {
         const r = await lerFicheirosExtrato(ficheiros, (t) => { estado.textContent = t; });
         estado.textContent = '';
-        if (!r.movimentos.length) return 'Não encontrei movimentos ' + (r.observacoes ? `(${r.observacoes})` : 'nestes ficheiros.');
+        if (!r.movimentos.length) {
+          const b = blocoTextoLido(r.textoLido);
+          if (b) estado.replaceChildren(b);
+          return 'Não encontrei movimentos ' + (r.observacoes ? `(${r.observacoes})` : 'nestes ficheiros.');
+        }
         try { localStorage.setItem('ultimaConta', c.id); } catch {}
         await abrirRevisaoImportacao(c, r);
         return false; // a folha continua aberta, agora com a revisão
@@ -284,7 +302,7 @@ async function abrirImportar() {
 }
 
 // ----- Folha 2: rever antes de gravar -----
-async function abrirRevisaoImportacao(conta, { movimentos, saldoFinal, observacoes }) {
+async function abrirRevisaoImportacao(conta, { movimentos, saldoFinal, observacoes, textoLido }) {
   const movs = await DB.todos('financas');
   const ids = idsImportacao(conta.id, movimentos);
   const itens = movimentos.map((m, i) => ({ ...m, id: ids[i] }))
@@ -379,7 +397,8 @@ async function abrirRevisaoImportacao(conta, { movimentos, saldoFinal, observaco
       zonaSaldo,
       el('div', { class: 'secao' }, el('h2', {}, 'Movimentos'), todos),
       el('div', { class: 'ajuda' }, 'Toca num movimento para corrigir a descrição, o valor, a data ou a categoria.'),
-      lista),
+      lista,
+      blocoTextoLido(textoLido)),
     guardar: async () => {
       const escolhidos = itens.filter((it) => it.escolhido);
       if (!escolhidos.length) return 'Não há nenhum movimento marcado.';

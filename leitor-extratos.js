@@ -85,7 +85,8 @@ async function ocr(tela, aoProgresso) {
     trabalhadorOCR = await Tesseract.createWorker('por', 1, {
       logger: (m) => { if (m.status === 'recognizing text') aoProgresso(`A ler o texto… ${Math.round(m.progress * 100)}%`); },
     });
-    await trabalhadorOCR.setParameters({ preserve_interword_spaces: '1' });
+    // PSM 4 = uma coluna de linhas: mantém o nome e o valor na mesma linha (o modo automático separa colunas)
+    await trabalhadorOCR.setParameters({ preserve_interword_spaces: '1', tessedit_pageseg_mode: '4' });
   }
   const { data } = await trabalhadorOCR.recognize(tela);
   return data.text || '';
@@ -203,7 +204,12 @@ function tirarData(linha, ano) {
   return semanaSozinha();
 }
 
+function corrigirValoresOCR(s) {
+  return s.replace(/[\dOoIl|SB]{1,3}[,.][\dOoIl|SB]{2}(?=\s?€)/g, (v) =>
+    /\d/.test(v) ? v.replace(/[Oo]/g, '0').replace(/[Il|]/g, '1').replace(/S/g, '5').replace(/B/g, '8') : v);
+}
 function valoresDaLinha(s) {
+  s = corrigirValoresOCR(s);
   // OCR às vezes come a vírgula de valores abaixo de 1 €: "040€" → "0,40€"
   s = s.replace(/(^|\s)0(\d{2})(\s?€)/g, (_, a, c, e) => `${a}0,${c}${e}`);
   const res = [];
@@ -261,8 +267,19 @@ function lerTextoExtrato(texto) {
 
   // Datas: própria da linha; senão, se o 1.º movimento aparece antes de qualquer data, as datas vêm
   // por baixo de cada movimento (Carteira da Apple); caso contrário são cabeçalhos por cima (Revolut, etc.)
-  const primeiroSemData = itens.find((it) => !it.soSaldo && !it.dataPropria);
-  const datasDepois = !!primeiroSemData && !primeiroSemData.dataAntes && marcas.length > 0;
+  // Conta quantos movimentos têm uma data logo a seguir (antes do próximo) e quantos logo antes.
+  // Nas listas com a data por baixo (Carteira da Apple) o último movimento também tem data a seguir;
+  // nas listas com cabeçalhos (Revolut) o último movimento não tem.
+  const semData = itens.map((it, i) => ({ it, i })).filter(({ it }) => !it.soSaldo && !it.dataPropria);
+  let depois = 0, antes = 0;
+  for (const { i } of semData) {
+    if (marcas.some((x) => x.pos === i + 1)) depois++;
+    if (marcas.some((x) => x.pos === i)) antes++;
+  }
+  const ultimo = semData[semData.length - 1];
+  const datasDepois = semData.length > 0 && marcas.length > 0 && (
+    !semData[0].it.dataAntes ||
+    (marcas.some((x) => x.pos === ultimo.i + 1) && depois >= antes));
   itens.forEach((it, i) => {
     if (it.soSaldo) return;
     if (it.dataPropria) { it.data = it.dataPropria; return; }

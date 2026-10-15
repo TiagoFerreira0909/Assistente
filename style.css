@@ -438,3 +438,8 @@ body.com-login { overflow: hidden; }
 .linha.importar-item .meio span.alerta { white-space: normal; }
 .importar-editor { padding: 6px 16px 14px; background: var(--cartao-2); }
 .importar-editor .campo input, .importar-editor .campo select { background: var(--cartao); }
+
+/* Importar: texto lido do print/PDF */
+.detalhe-texto { margin: 16px 4px; }
+.detalhe-texto summary { color: var(--acento); font-weight: 600; font-size: 15px; padding: 8px 0; cursor: pointer; }
+.texto-lido { white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.4; background: var(--cartao); border-radius: 12px; padding: 12px; max-height: 300px; overflow: auto; margin: 6px 0; }
