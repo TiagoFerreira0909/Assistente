@@ -18,7 +18,7 @@ function svg(nome) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONES[nome]}</svg>`;
 }
 
-const VERSAO_APP = 11; // aparece no ecrã da Conta, para confirmar que o iPhone tem a versão nova
+const VERSAO_APP = 12; // aparece no ecrã da Conta, para confirmar que o iPhone tem a versão nova
 
 // ===== Navegação =====
 const VISTAS = {
@@ -136,7 +136,7 @@ function lerNumero(txt) {
 // ===== Folha (janela que sobe de baixo) =====
 // Estrutura: topo fixo (Cancelar · título · Guardar) + corpo com scroll + rodapé fixo com botão Guardar.
 // O rodapé fica sempre visível, mesmo com o teclado aberto.
-// abrirFolha({ titulo, corpo, guardar: async () => true|'mensagem de erro', apagar })
+// abrirFolha({ titulo, corpo, guardar: async () => true|'mensagem de erro'|false (fica aberta), apagar })
 function abrirFolha({ titulo: t, corpo, guardar, apagar, textoGuardar = 'Guardar' }) {
   folha.innerHTML = '';
   const erro = el('div', { class: 'erro' });
@@ -146,6 +146,7 @@ function abrirFolha({ titulo: t, corpo, guardar, apagar, textoGuardar = 'Guardar
     ocupado = true;
     try {
       const r = await guardar();
+      if (r === false) return; // a própria função já mudou o conteúdo da folha (ex.: passo seguinte)
       if (r === true || r === undefined) { folha.close(); redesenhar(); }
       else { erro.textContent = r; corpoEl.scrollTo({ top: 0, behavior: 'smooth' }); }
     } finally { ocupado = false; }
@@ -171,7 +172,7 @@ function abrirFolha({ titulo: t, corpo, guardar, apagar, textoGuardar = 'Guardar
   });
   document.documentElement.classList.add('folha-aberta');
   ajustarFolha();
-  folha.showModal();
+  if (!folha.open) folha.showModal();
   corpoEl.scrollTop = 0;
 }
 folha.addEventListener('close', () => document.documentElement.classList.remove('folha-aberta'));

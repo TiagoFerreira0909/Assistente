@@ -269,7 +269,7 @@ const Nuvem = (() => {
 
   return {
     notif,
-    entrar, registar, recuperar, mudarPalavra, sair, sincronizar, lerLinkDoEmail,
+    entrar, registar, recuperar, mudarPalavra, sair, sincronizar, lerLinkDoEmail, token,
     get sessao() { return sessao; },
     get estado() { return estado; },
     get erro() { return ultimoErro; },
