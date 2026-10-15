@@ -340,6 +340,7 @@ async function abrirConta(conta = null, saldoAtual = 0) {
 function desenharMovimentos(zona, dados) {
   const { contas, movs } = dados;
   zona.append(seletorMes(() => { zona.innerHTML = ''; desenharMovimentos(zona, dados); }));
+  if (contas.length) zona.append(el('button', { class: 'btn claro largo importar-abrir', onclick: () => abrirImportar() }, '📥 Importar extrato ou prints'));
 
   const chave = chaveMes(finMes);
   const doMes = movs.filter((m) => m.data.startsWith(chave))

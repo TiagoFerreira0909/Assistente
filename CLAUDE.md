@@ -5,9 +5,10 @@ Publicada em GitHub Pages: https://tiagoferreira0909.github.io/Assistente/ (ramo
 Tudo em **português de Portugal**: interface, nomes de variáveis/funções e comentários.
 
 ## Ficheiros
-- `index.html` — esqueleto; carrega os scripts por esta ordem: `db.js`, `app.js`, `financas.js`, `lembretes.js`, `datas.js`, `nuvem.js`, `copia.js`, `arranque.js`
+- `index.html` — esqueleto; carrega os scripts por esta ordem: `db.js`, `app.js`, `financas.js`, `importar.js`, `lembretes.js`, `datas.js`, `nuvem.js`, `copia.js`, `arranque.js`
 - `app.js` — núcleo: navegação (`VISTAS`, `irPara`, `redesenhar`), utilitários (`el`, `euro`, `campo`, `segmentos`, `lerNumero`), folhas (`abrirFolha`), Início e Notas
 - `financas.js` — contas, movimentos, depósitos a prazo (`verificarDepositos`), subscrições (`verificarSubscricoes`), resumo
+- `importar.js` — importar extratos (Finanças → Movimentos → Importar): CSV lido no aparelho; PDF/prints (e CSV que não se perceba) lidos pela função `extratos`. Mostra a lista para rever antes de gravar; ids determinísticos `imp-<conta>-<data>-<cêntimos>-<hash descrição>-<n>`; marca como já registado o que tem o mesmo valor na mesma conta a ±3 dias
 - `lembretes.js` — Lembretes (estilo iPhone: data/hora opcionais, repetir, prioridade, aviso por lembrete); notificações locais enquanto a app está aberta (`agendarLembretesLocais`)
 - `datas.js` — datas importantes (aniversários, prazos, pagamentos; repetição anual/mensal) e ligação ao Google Calendar por link de calendário (.ics)
 - `nuvem.js` — login Supabase (REST/fetch, sem biblioteca), sincronização, notificações push, ecrãs de conta
@@ -37,6 +38,11 @@ Tudo em **português de Portugal**: interface, nomes de variáveis/funções e c
 - Edge Function `calendario` (verify JWT desligado): `GET ?t=<token>` devolve as datas do utilizador em `.ics`, para o
   Google Calendar subscrever "a partir do URL". O token vem de `registos` (tabela `definicoes`, id `calendario`),
   criado na app em Datas → Google Calendar. Não precisa de SQL novo. Publicar como a `avisos` (trocar o nome).
+
+- Edge Function `extratos` (verify JWT desligado, verifica a sessão no código): `POST` com imagens/PDF/texto em base64 → movimentos
+  extraídos pelo Claude (`claude-opus-5-5`, saída em JSON com esquema). Não grava nada. Precisa do secret `ANTHROPIC_API_KEY`
+  (tem custo por uso). Só contas criadas até 2026-10-16 a podem usar (ou as do secret `EXTRATOS_UTILIZADORES`).
+  `GET ?estado=1` diz se a chave está configurada. Publicar como a `avisos` (trocar o nome).
 
 ## Por fazer / ideias
 - Juros automáticos mensais para contas poupança (ex.: Revolut, taxa em RPA)

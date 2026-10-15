@@ -420,3 +420,21 @@ body.com-login { overflow: hidden; }
   display: grid; place-items: center; font-size: 13px; font-weight: 700;
   background: var(--acento-suave); color: var(--acento);
 }
+
+/* Importar extratos */
+.importar-abrir { margin-bottom: 12px; }
+.importar-botoes { margin-bottom: 14px; }
+.importar-botoes .btn { padding: 13px 8px; font-size: 15px; }
+.importar-ficheiros .tirar { border: 0; background: none; color: var(--suave); font-size: 18px; padding: 8px; }
+.importar-estado { margin: 0 4px 14px; font-weight: 600; color: var(--acento); min-height: 0; }
+.importar-resumo { margin-bottom: 14px; }
+.importar-resumo b { font-size: 17px; }
+.importar-resumo p { margin: 6px 0 0; color: var(--suave); font-size: 14px; line-height: 1.4; }
+.importar-resumo .nota-importar { color: var(--texto); }
+.linha.importar-item { cursor: pointer; }
+.linha.importar-item .visto { margin: 0; }
+.linha.importar-item + .linha::before, .importar-editor + .linha::before { left: 54px; }
+.linha.importar-item.desmarcado .meio, .linha.importar-item.desmarcado .valor { opacity: .45; }
+.linha.importar-item .meio span.alerta { white-space: normal; }
+.importar-editor { padding: 6px 16px 14px; background: var(--cartao-2); }
+.importar-editor .campo input, .importar-editor .campo select { background: var(--cartao); }
