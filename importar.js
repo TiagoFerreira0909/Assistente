@@ -151,20 +151,22 @@ async function lerFicheirosExtrato(ficheiros, aoProgresso) {
       aoProgresso(`A ler ${f.name}…`);
       const t = await textoDaImagem(f, aoProgresso);
       textos.push(`— ${f.name} —\n${t}`);
-      r = lerTextoExtrato(t);
+      r = lerTextoExtrato(t, { ocr: true });
     } else if (f.type === 'application/pdf' || nome.endsWith('.pdf')) {
       aoProgresso(`A abrir ${f.name}…`);
       const pdf = await abrirPDF(f);
       let texto = await textoDoPDF(pdf);
+      let porOCR = false;
       if (texto.replace(/\s/g, '').length < 40) {
         // PDF digitalizado (só imagem): lê as páginas com OCR
         const telas = await paginasPDFParaImagens(pdf);
-        const textos = [];
-        for (let i = 0; i < telas.length; i++) { aoProgresso(`A ler a página ${i + 1} de ${telas.length}…`); textos.push(await ocr(telas[i], aoProgresso)); }
-        texto = textos.join('\n');
+        const paginas = [];
+        for (let i = 0; i < telas.length; i++) { aoProgresso(`A ler a página ${i + 1} de ${telas.length}…`); paginas.push(await ocr(telas[i], aoProgresso)); }
+        texto = paginas.join('\n');
+        porOCR = true;
       }
       textos.push(`— ${f.name} —\n${texto}`);
-      r = lerTextoExtrato(texto);
+      r = lerTextoExtrato(texto, { ocr: porOCR });
     } else if (/\.xlsx$/.test(nome)) {
       throw new Error(`O ficheiro ${f.name} é Excel (.xlsx). Exporta do banco em CSV ou PDF.`);
     } else {

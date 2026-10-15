@@ -208,10 +208,17 @@ function corrigirValoresOCR(s) {
   return s.replace(/[\dOoIl|SB]{1,3}[,.][\dOoIl|SB]{2}(?=\s?€)/g, (v) =>
     /\d/.test(v) ? v.replace(/[Oo]/g, '0').replace(/[Il|]/g, '1').replace(/S/g, '5').replace(/B/g, '8') : v);
 }
-function valoresDaLinha(s) {
+// ocr = texto lido de uma imagem: a vírgula dos cêntimos perde-se muitas vezes ("1,84 €" → "184€" ou "1 84 €").
+// Nas apps e extratos os valores com € têm sempre 2 casas, por isso "184€" só pode ser 1,84 €.
+function valoresDaLinha(s, ocr = false) {
   s = corrigirValoresOCR(s);
-  // OCR às vezes come a vírgula de valores abaixo de 1 €: "040€" → "0,40€"
-  s = s.replace(/(^|\s)0(\d{2})(\s?€)/g, (_, a, c, e) => `${a}0,${c}${e}`);
+  if (ocr) {
+    s = s.replace(/(^|[\s(:])([-+−–]\s?)?(\d{1,4})\s(\d{2})(\s?€)/g, (_, a, sn, i, c, e) => `${a}${sn || ''}${i},${c}${e}`);   // "1 84 €"
+    s = s.replace(/(^|[\s(:])([-+−–]\s?)?(\d{3,6})(\s?€)/g, (_, a, sn, n, e) => `${a}${sn || ''}${n.slice(0, -2)},${n.slice(-2)}${e}`); // "184€"
+  } else {
+    // mesmo fora do OCR: "040€" só pode ser 0,40 €
+    s = s.replace(/(^|\s)0(\d{2})(\s?€)/g, (_, a, c, e) => `${a}0,${c}${e}`);
+  }
   const res = [];
   for (const m of s.matchAll(RE_VALOR)) {
     const inteiro = m[4].replace(/[.,\s '’]/g, '');
@@ -229,7 +236,7 @@ function limparDescricao(s) {
     .replace(/\s+/g, ' ').replace(/^[-–:,.\s]+|[-–:,.\s€]+$/g, '').trim().slice(0, 120);
 }
 
-function lerTextoExtrato(texto) {
+function lerTextoExtrato(texto, { ocr = false } = {}) {
   const ano = anoProvavel(texto);
   const itens = [];
   const marcas = [];   // linhas só com data: { pos: nº de itens antes dela, data }
@@ -240,7 +247,7 @@ function lerTextoExtrato(texto) {
     const d = tirarData(linha, ano);
     // tira a 2.ª data (data-valor) logo a seguir, para não ser confundida com um valor (ex.: 05.10)
     const resto = (d ? d.resto : linha).replace(/^\s*(\d{1,2}[-/.]\d{1,2}([-/.]\d{2,4})?\s+)+/, '');
-    const vals = valoresDaLinha(resto);
+    const vals = valoresDaLinha(resto, ocr);
     const ehSaldo = /saldo|balance/i.test(resto) && !/transf/i.test(resto);
     if (ehSaldo && vals.length) { itens.push({ soSaldo: true, saldo: vals[vals.length - 1].v }); descPendente = ''; continue; }
     if (d && d.data && !vals.length) {
