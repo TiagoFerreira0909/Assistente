@@ -1,18 +1,10 @@
 // =====================================================
 //  Importar extratos: ficheiro do banco (CSV/PDF) ou prints → movimentos
 // =====================================================
-// O CSV é lido aqui no aparelho. PDF, prints e CSV que não se perceba são lidos pela
-// função "extratos" na nuvem (usa o Claude). Nada é gravado sem rever a lista primeiro.
+// Tudo é lido aqui no aparelho, sem custos: CSV diretamente, PDF com o pdf.js e prints com OCR
+// (ver leitor-extratos.js). Nada é gravado sem rever a lista primeiro.
 // Os ids dos movimentos importados são determinísticos (imp-<conta>-<data>-<cêntimos>-<descrição>-<n>):
 // importar o mesmo extrato duas vezes (ou em dois aparelhos) nunca duplica.
-
-const IMPORTAR = {
-  larguraMax: 1290,   // largura máxima das imagens enviadas (px)
-  alturaFatia: 2400,  // capturas longas são partidas em fatias desta altura…
-  sobreposicao: 150,  // …que se sobrepõem um pouco para não cortar uma linha a meio
-  maxPartes: 24,
-  maxBytes: 18 * 1024 * 1024,
-};
 
 // ----- Categorias sugeridas pela descrição (usado no CSV e como reserva) -----
 const PALAVRAS_CATEGORIA = [
@@ -39,15 +31,6 @@ function sugerirCategoria(tipo, descricao) {
 }
 
 // ----- Leitura de ficheiros -----
-function paraBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result).split(',')[1] || '');
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(blob);
-  });
-}
-
 // Os bancos portugueses exportam muitas vezes em Windows-1252 (acentos estragados se lidos como UTF-8)
 async function lerTexto(f) {
   const bytes = await f.arrayBuffer();
@@ -63,29 +46,6 @@ function carregarImagem(f) {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`Não consegui abrir a imagem ${f.name}.`)); };
     img.src = url;
   });
-}
-
-// Reduz a imagem e parte as capturas muito compridas em fatias (JPEG em base64)
-async function imagemParaPartes(f) {
-  const img = await carregarImagem(f);
-  const escala = Math.min(1, IMPORTAR.larguraMax / img.naturalWidth);
-  const largura = Math.round(img.naturalWidth * escala);
-  const altura = Math.round(img.naturalHeight * escala);
-  const partes = [];
-  let y = 0;
-  while (y < altura) {
-    const h = Math.min(IMPORTAR.alturaFatia, altura - y);
-    const tela = document.createElement('canvas');
-    tela.width = largura; tela.height = h;
-    const ctx = tela.getContext('2d');
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, largura, h);
-    ctx.drawImage(img, 0, y / escala, img.naturalWidth, h / escala, 0, 0, largura, h);
-    const blob = await new Promise((r) => tela.toBlob(r, 'image/jpeg', 0.85));
-    partes.push({ tipo: 'imagem', nome: f.name, dados: await paraBase64(blob) });
-    if (y + h >= altura) break;
-    y += h - IMPORTAR.sobreposicao;
-  }
-  return partes;
 }
 
 // ----- CSV -----
@@ -178,54 +138,41 @@ function lerCSV(texto) {
   return null;
 }
 
-// ----- Nuvem (PDF, prints e CSV que não se percebeu) -----
-async function lerNaNuvem(partes) {
-  if (!Nuvem.sessao) throw new Error('Para ler PDF e prints é preciso ter sessão iniciada (em Conta). Os ficheiros CSV funcionam sem conta.');
-  if (!navigator.onLine) throw new Error('Sem internet. Os PDF e prints são lidos na nuvem.');
-  const corpo = JSON.stringify({
-    partes, hoje: hojeISO(),
-    categorias: { despesa: CATEGORIAS.despesa.map(([n]) => n), receita: CATEGORIAS.receita.map(([n]) => n) },
-  });
-  if (corpo.length > IMPORTAR.maxBytes) throw new Error('Os ficheiros são demasiado grandes. Experimenta enviar menos de cada vez.');
-  const r = await fetch(NUVEM.url + '/functions/v1/extratos', {
-    method: 'POST',
-    headers: { apikey: NUVEM.chave, Authorization: 'Bearer ' + await Nuvem.token(), 'Content-Type': 'application/json' },
-    body: corpo,
-  });
-  let d = {}; try { d = await r.json(); } catch {}
-  if (!r.ok) throw new Error(d.erro || `A leitura falhou (erro ${r.status}). Tenta outra vez.`);
-  return d;
-}
-
+// ----- PDF, prints e CSV "estranhos": lidos aqui no telemóvel, sem custos (ver leitor-extratos.js) -----
 async function lerFicheirosExtrato(ficheiros, aoProgresso) {
-  const partes = [];
   const movimentos = [];
-  let saldoFinal = null, observacoes = '';
+  let saldoFinal = null;
+  const avisos = [];
   for (const f of ficheiros) {
     const nome = f.name.toLowerCase();
+    let r = null;
     if (f.type.startsWith('image/') || /\.(jpe?g|png|heic|heif|webp)$/.test(nome)) {
-      aoProgresso(`A preparar ${f.name}…`);
-      partes.push(...await imagemParaPartes(f));
+      aoProgresso(`A ler ${f.name}…`);
+      r = lerTextoExtrato(await textoDaImagem(f, aoProgresso));
     } else if (f.type === 'application/pdf' || nome.endsWith('.pdf')) {
-      partes.push({ tipo: 'pdf', nome: f.name, dados: await paraBase64(f) });
+      aoProgresso(`A abrir ${f.name}…`);
+      const pdf = await abrirPDF(f);
+      let texto = await textoDoPDF(pdf);
+      if (texto.replace(/\s/g, '').length < 40) {
+        // PDF digitalizado (só imagem): lê as páginas com OCR
+        const telas = await paginasPDFParaImagens(pdf);
+        const textos = [];
+        for (let i = 0; i < telas.length; i++) { aoProgresso(`A ler a página ${i + 1} de ${telas.length}…`); textos.push(await ocr(telas[i], aoProgresso)); }
+        texto = textos.join('\n');
+      }
+      r = lerTextoExtrato(texto);
     } else if (/\.xlsx$/.test(nome)) {
       throw new Error(`O ficheiro ${f.name} é Excel (.xlsx). Exporta do banco em CSV ou PDF.`);
     } else {
       const texto = await lerTexto(f);
       const local = lerCSV(texto);
-      if (local) movimentos.push(...local);
-      else partes.push({ tipo: 'texto', nome: f.name, dados: texto.slice(0, 300000) });
+      r = local ? { movimentos: local, saldoFinal: null } : lerTextoExtrato(texto);
     }
+    if (!r.movimentos.length) avisos.push(`não encontrei movimentos em ${f.name}`);
+    movimentos.push(...r.movimentos);
+    if (r.saldoFinal !== null && r.saldoFinal !== undefined) saldoFinal = r.saldoFinal;
   }
-  if (partes.length > IMPORTAR.maxPartes) throw new Error(`São demasiadas imagens de uma vez (${partes.length} partes). Envia no máximo ${IMPORTAR.maxPartes}.`);
-  if (partes.length) {
-    aoProgresso('A ler o extrato com o Claude… pode demorar até um minuto.');
-    const d = await lerNaNuvem(partes);
-    movimentos.push(...(d.movimentos || []));
-    saldoFinal = typeof d.saldoFinal === 'number' ? d.saldoFinal : null;
-    observacoes = d.observacoes || '';
-  }
-  // Garante formato e categorias válidas (venha de onde vier)
+  // Garante formato e categorias válidas
   const limpos = movimentos.filter((m) => m && dataExtrato(m.data) === m.data && Math.abs(+m.valor) >= 0.005)
     .map((m) => {
       const tipo = m.tipo === 'receita' ? 'receita' : 'despesa';
@@ -234,6 +181,7 @@ async function lerFicheirosExtrato(ficheiros, aoProgresso) {
       return { data: m.data, descricao, valor: arred(Math.abs(+m.valor)), tipo,
         categoria: cats.includes(m.categoria) ? m.categoria : sugerirCategoria(tipo, descricao) };
     });
+  const observacoes = avisos.length && limpos.length ? `Atenção: ${avisos.join('; ')}.` : (avisos.length ? 'experimenta um print mais nítido ou o ficheiro CSV/PDF do banco' : '');
   return { movimentos: limpos, saldoFinal, observacoes };
 }
 
@@ -309,7 +257,7 @@ async function abrirImportar() {
         el('button', { type: 'button', class: 'btn claro', onclick: () => entradaImagens.click() }, '🖼️ Prints')),
       entradaFicheiro, entradaImagens, lista, estado,
       el('div', { class: 'ajuda' },
-        'Ficheiros CSV são lidos aqui no telemóvel. PDF e prints (do extrato ou da app do banco) são lidos pelo Claude na nuvem: precisa de internet e de sessão iniciada. ',
+        'Tudo é lido aqui no telemóvel, sem custos. O melhor é o CSV ou o PDF do banco; os prints também funcionam (na primeira vez descarrega o leitor de imagens). Confirma sempre os valores na lista. ',
         'Antes de gravar vês a lista, corriges o que for preciso e escolhes o que fica. Os movimentos que já tens registados aparecem desmarcados.')),
     guardar: async () => {
       if (!ficheiros.length) return 'Escolhe um ficheiro do banco ou os prints.';

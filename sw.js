@@ -1,8 +1,8 @@
 // Service worker: guarda os ficheiros da app para funcionar sem internet.
 // Sempre que alterares ficheiros, muda o número da versão para o iPhone atualizar.
-const VERSAO = 'assistente-v12';
+const VERSAO = 'assistente-v13';
 const FICHEIROS = [
-  './', 'index.html', 'style.css', 'db.js', 'app.js', 'financas.js', 'importar.js', 'lembretes.js', 'datas.js', 'nuvem.js', 'copia.js', 'arranque.js', 'manifest.json',
+  './', 'index.html', 'style.css', 'db.js', 'app.js', 'financas.js', 'importar.js', 'leitor-extratos.js', 'lembretes.js', 'datas.js', 'nuvem.js', 'copia.js', 'arranque.js', 'manifest.json',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
 

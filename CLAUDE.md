@@ -5,10 +5,11 @@ Publicada em GitHub Pages: https://tiagoferreira0909.github.io/Assistente/ (ramo
 Tudo em **português de Portugal**: interface, nomes de variáveis/funções e comentários.
 
 ## Ficheiros
-- `index.html` — esqueleto; carrega os scripts por esta ordem: `db.js`, `app.js`, `financas.js`, `importar.js`, `lembretes.js`, `datas.js`, `nuvem.js`, `copia.js`, `arranque.js`
+- `index.html` — esqueleto; carrega os scripts por esta ordem: `db.js`, `app.js`, `financas.js`, `importar.js`, `leitor-extratos.js`, `lembretes.js`, `datas.js`, `nuvem.js`, `copia.js`, `arranque.js`
 - `app.js` — núcleo: navegação (`VISTAS`, `irPara`, `redesenhar`), utilitários (`el`, `euro`, `campo`, `segmentos`, `lerNumero`), folhas (`abrirFolha`), Início e Notas
 - `financas.js` — contas, movimentos, depósitos a prazo (`verificarDepositos`), subscrições (`verificarSubscricoes`), resumo
-- `importar.js` — importar extratos (Finanças → Movimentos → Importar): CSV lido no aparelho; PDF/prints (e CSV que não se perceba) lidos pela função `extratos`. Mostra a lista para rever antes de gravar; ids determinísticos `imp-<conta>-<data>-<cêntimos>-<hash descrição>-<n>`; marca como já registado o que tem o mesmo valor na mesma conta a ±3 dias
+- `importar.js` — importar extratos (Finanças → Movimentos → Importar): tudo lido no aparelho, sem custos (CSV com `lerCSV`; PDF, prints e CSV estranhos via `leitor-extratos.js`). Mostra a lista para rever antes de gravar; ids determinísticos `imp-<conta>-<data>-<cêntimos>-<hash descrição>-<n>`; marca como já registado o que tem o mesmo valor na mesma conta a ±3 dias
+- `leitor-extratos.js` — leitor grátis: PDF com pdf.js (incluído em `lib/pdfjs`, build legacy p/ Safari antigo), prints com OCR Tesseract.js (CDN jsdelivr, carregado só quando preciso; língua `por`). `lerTextoExtrato` percebe linhas data/descrição/valor/saldo; sinal por -/+, diferença de saldos (ordem crescente ou decrescente) ou palavras-chave (`RE_RECEITA`). Apps: cabeçalhos "Hoje/Ontem/10 de outubro" + linhas com valor.
 - `lembretes.js` — Lembretes (estilo iPhone: data/hora opcionais, repetir, prioridade, aviso por lembrete); notificações locais enquanto a app está aberta (`agendarLembretesLocais`)
 - `datas.js` — datas importantes (aniversários, prazos, pagamentos; repetição anual/mensal) e ligação ao Google Calendar por link de calendário (.ics)
 - `nuvem.js` — login Supabase (REST/fetch, sem biblioteca), sincronização, notificações push, ecrãs de conta
@@ -39,10 +40,7 @@ Tudo em **português de Portugal**: interface, nomes de variáveis/funções e c
   Google Calendar subscrever "a partir do URL". O token vem de `registos` (tabela `definicoes`, id `calendario`),
   criado na app em Datas → Google Calendar. Não precisa de SQL novo. Publicar como a `avisos` (trocar o nome).
 
-- Edge Function `extratos` (verify JWT desligado, verifica a sessão no código): `POST` com imagens/PDF/texto em base64 → movimentos
-  extraídos pelo Claude (`claude-opus-5-5`, saída em JSON com esquema). Não grava nada. Precisa do secret `ANTHROPIC_API_KEY`
-  (tem custo por uso). Só contas criadas até 2026-10-16 a podem usar (ou as do secret `EXTRATOS_UTILIZADORES`).
-  `GET ?estado=1` diz se a chave está configurada. Publicar como a `avisos` (trocar o nome).
+- Edge Function `extratos` (antiga, usava o Claude e tinha custos): **já não é usada pela app** desde a versão 13 (leitura passou a ser local e grátis). Pode ser apagada no dashboard.
 
 ## Por fazer / ideias
 - Juros automáticos mensais para contas poupança (ex.: Revolut, taxa em RPA)
