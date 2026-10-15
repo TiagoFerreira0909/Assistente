@@ -39,6 +39,11 @@ Tudo em **português de Portugal**: interface, nomes de variáveis/funções e c
   Google Calendar subscrever "a partir do URL". O token vem de `registos` (tabela `definicoes`, id `calendario`),
   criado na app em Datas → Google Calendar. Não precisa de SQL novo. Publicar como a `avisos` (trocar o nome).
 
+- Edge Function `extratos` (verify JWT desligado, verifica a sessão no código): `POST` com imagens/PDF/texto em base64 → movimentos
+  extraídos pelo Claude (`claude-opus-5-5`, saída em JSON com esquema). Não grava nada. Precisa do secret `ANTHROPIC_API_KEY`
+  (tem custo por uso). Só contas criadas até 2026-10-16 a podem usar (ou as do secret `EXTRATOS_UTILIZADORES`).
+  `GET ?estado=1` diz se a chave está configurada. Publicar como a `avisos` (trocar o nome).
+
 ## Por fazer / ideias
 - Juros automáticos mensais para contas poupança (ex.: Revolut, taxa em RPA)
 - Lembrete periódico para fazer cópia de segurança (a data da última fica em `localStorage.ultimaCopia`)
