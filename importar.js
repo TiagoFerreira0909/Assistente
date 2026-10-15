@@ -206,12 +206,17 @@ function marcarDuplicados(conta, itens, movs) {
   const usados = new Set();
   const existentes = movs.filter((m) => efeitoNaConta(m, conta.id) !== 0);
   const ids = new Set(movs.map((m) => m.id));
-  for (const it of itens) {
-    if (ids.has(it.id)) { it.duplicado = 'Já importado'; usados.add(it.id); continue; }
-    const sinal = it.tipo === 'receita' ? it.valor : -it.valor;
-    const igual = existentes.find((m) => !usados.has(m.id) && Math.abs(efeitoNaConta(m, conta.id) - sinal) < 0.005
-      && Math.abs(diasEntre(m.data, it.data)) <= 3);
-    if (igual) { usados.add(igual.id); it.duplicado = `Parece já registado (${igual.descricao || igual.categoria || 'movimento'}, ${dataBonita(igual.data)})`; }
+  for (const it of itens) if (ids.has(it.id)) { it.duplicado = 'Já importado'; usados.add(it.id); }
+  // Mesmo valor: primeiro procura no mesmo dia, depois a 1, 2 e 3 dias — assim duas compras iguais em dias
+  // diferentes (ex.: café todos os dias) não "roubam" o registo uma da outra
+  for (let dist = 0; dist <= 3; dist++) {
+    for (const it of itens) {
+      if (it.duplicado) continue;
+      const sinal = it.tipo === 'receita' ? it.valor : -it.valor;
+      const igual = existentes.find((m) => !usados.has(m.id) && Math.abs(efeitoNaConta(m, conta.id) - sinal) < 0.005
+        && Math.abs(diasEntre(m.data, it.data)) === dist);
+      if (igual) { usados.add(igual.id); it.duplicado = `Parece já registado (${igual.descricao || igual.categoria || 'movimento'}, ${dataBonita(igual.data)})`; }
+    }
   }
   for (const it of itens) it.escolhido = !it.duplicado;
 }

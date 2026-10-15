@@ -11,7 +11,7 @@ const LEITOR = {
   pdfjs: 'lib/pdfjs/pdf.js',
   pdfjsWorker: 'lib/pdfjs/pdf.worker.js',
   tesseract: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js',
-  alturaFatia: 2200,   // prints compridos são lidos às fatias
+  alturaFatia: 3200,   // prints compridos são lidos às fatias
   sobreposicao: 120,
 };
 
@@ -120,7 +120,7 @@ function juntarFatias(textos) {
   let linhas = [];
   for (const t of textos) {
     const novas = t.split('\n');
-    const norm = (s) => semAcentos(s).replace(/\s+/g, '');
+    const norm = (s) => semAcentos(s).replace(/[^a-z0-9,]/g, '');
     let corte = 0;
     for (let k = Math.min(8, linhas.length, novas.length); k > 0; k--) {
       const fim = linhas.slice(-k).map(norm).join('|'), ini = novas.slice(0, k).map(norm).join('|');
@@ -163,9 +163,27 @@ function tirarData(linha, ano) {
     return iso;
   };
   let s = linha.trim(), m;
-  const rel = s.match(/^(hoje|today|ontem|yesterday)\b[,\s]*/i);
+  const rel = s.match(/^(hoje|today|agora|just now|ontem|yesterday)\b[,\s]*/i);
   if (rel) { const d = new Date(); if (/ontem|yesterday/i.test(rel[1])) d.setDate(d.getDate() - 1); return { data: paraISO(d), resto: s.slice(rel[0].length) }; }
-  s = s.replace(/^(segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)(-feira)?,?\s+|^(mon|tue|wed|thu|fri|sat|sun)[a-z]*,?\s+/i, '');
+  // "Há 3 horas", "Há 25 minutos", "Há 2 dias", "3 hours ago" (Carteira da Apple, apps de bancos)
+  const ha = s.match(/^(?:h[áa]\s+(\d+|um|uma)\s+(minuto|hora|dia|semana)s?|(\d+|an?)\s+(minute|hour|day|week)s?\s+ago)\b[,\s]*/i);
+  if (ha) {
+    const n = /^\d+$/.test(ha[1] || ha[3]) ? +(ha[1] || ha[3]) : 1;
+    const u = (ha[2] || ha[4]).toLowerCase();
+    const ms = { minuto: 6e4, minute: 6e4, hora: 36e5, hour: 36e5, dia: 864e5, day: 864e5, semana: 6048e5, week: 6048e5 }[u];
+    return { data: paraISO(new Date(Date.now() - n * ms)), resto: s.slice(ha[0].length) };
+  }
+  // Dia da semana: seguido de data ("segunda-feira, 13 de outubro") ou sozinho ("Terça-feira" = a última terça)
+  const DIAS = { domingo: 0, segunda: 1, terca: 2, terga: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6, sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+  const ds = s.match(/^(segunda|terça|terca|terga|quarta|quinta|sexta|sábado|sabado|domingo)(-feira)?\b\.?,?\s*|^(sun|mon|tue|wed|thu|fri|sat)[a-z]*\b\.?,?\s*/i);
+  let diaSemana = null;
+  if (ds) { diaSemana = DIAS[semAcentos(ds[1] || ds[3]).slice(0, ds[1] ? 7 : 3).replace(/-.*/, '')]; s = s.slice(ds[0].length); }
+  const semanaSozinha = () => {
+    if (diaSemana === null || diaSemana === undefined) return null;
+    const d = new Date(); let volta = (d.getDay() - diaSemana + 7) % 7; if (volta === 0) volta = 7;
+    d.setDate(d.getDate() - volta);
+    return { data: paraISO(d), resto: s };
+  };
   if ((m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\b/))) return { data: validarISO(+m[1], +m[2], +m[3]), resto: s.slice(m[0].length) };
   if ((m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4}|\d{2})(?!\d)/))) {
     const a = m[3].length === 2 ? 2000 + +m[3] : +m[3];
@@ -182,10 +200,12 @@ function tirarData(linha, ano) {
   if ((m = s.match(/^(\d{1,2})[-/.](\d{1,2})(?![-/.]?\d)/))) {
     return { data: ajustarAno(validarISO(ano, +m[2], +m[1]), false), resto: s.slice(m[0].length) };
   }
-  return null;
+  return semanaSozinha();
 }
 
 function valoresDaLinha(s) {
+  // OCR às vezes come a vírgula de valores abaixo de 1 €: "040€" → "0,40€"
+  s = s.replace(/(^|\s)0(\d{2})(\s?€)/g, (_, a, c, e) => `${a}0,${c}${e}`);
   const res = [];
   for (const m of s.matchAll(RE_VALOR)) {
     const inteiro = m[4].replace(/[.,\s '’]/g, '');
@@ -206,6 +226,7 @@ function limparDescricao(s) {
 function lerTextoExtrato(texto) {
   const ano = anoProvavel(texto);
   const itens = [];
+  const marcas = [];   // linhas só com data: { pos: nº de itens antes dela, data }
   let dataGrupo = null, descPendente = '';
   for (const bruta of texto.split(/\r?\n/)) {
     const linha = bruta.replace(/\s+/g, ' ').trim();
@@ -217,8 +238,9 @@ function lerTextoExtrato(texto) {
     const ehSaldo = /saldo|balance/i.test(resto) && !/transf/i.test(resto);
     if (ehSaldo && vals.length) { itens.push({ soSaldo: true, saldo: vals[vals.length - 1].v }); descPendente = ''; continue; }
     if (d && d.data && !vals.length) {
-      // linha só com data: cabeçalho de grupo (apps) ou descrição continua na linha seguinte
+      // linha só com data: cabeçalho de grupo (apps) ou data por baixo do movimento (Carteira da Apple)
       dataGrupo = d.data;
+      marcas.push({ pos: itens.length, data: d.data });
       descPendente = limparDescricao(d.resto);
       continue;
     }
@@ -226,17 +248,28 @@ function lerTextoExtrato(texto) {
       if (!RE_IGNORAR.test(linha) && !/^\d{1,2}:\d{2}/.test(linha) && /[a-zà-ú]{2}/i.test(linha)) descPendente = limparDescricao(linha);
       continue;
     }
-    const data = d?.data || dataGrupo;
-    if (!data || (RE_IGNORAR.test(resto) && !d)) continue;
+    if (RE_IGNORAR.test(resto) && !d) continue;
     let desc = limparDescricao(resto.slice(0, vals[0].ini));
     if (desc.length < 2) desc = descPendente || desc;
     if (!desc || RE_IGNORAR.test(desc)) { if (!desc) continue; }
-    const item = { data, descricao: desc, valor: Math.abs(vals.length >= 2 ? vals[vals.length - 2].v : vals[0].v),
+    const item = { dataPropria: d?.data || null, dataAntes: dataGrupo, descricao: desc, valor: Math.abs(vals.length >= 2 ? vals[vals.length - 2].v : vals[0].v),
       sinal: vals.length >= 2 ? vals[vals.length - 2].sinal : vals[0].sinal,
       saldo: vals.length >= 2 ? vals[vals.length - 1].v : null };
     if (item.valor >= 0.005) itens.push(item);
     descPendente = '';
   }
+
+  // Datas: própria da linha; senão, se o 1.º movimento aparece antes de qualquer data, as datas vêm
+  // por baixo de cada movimento (Carteira da Apple); caso contrário são cabeçalhos por cima (Revolut, etc.)
+  const primeiroSemData = itens.find((it) => !it.soSaldo && !it.dataPropria);
+  const datasDepois = !!primeiroSemData && !primeiroSemData.dataAntes && marcas.length > 0;
+  itens.forEach((it, i) => {
+    if (it.soSaldo) return;
+    if (it.dataPropria) { it.data = it.dataPropria; return; }
+    if (datasDepois) { const mk = marcas.find((x) => x.pos >= i + 1); it.data = mk ? mk.data : it.dataAntes; }
+    else it.data = it.dataAntes;
+  });
+  for (let i = itens.length - 1; i >= 0; i--) if (!itens[i].soSaldo && !itens[i].data) itens.splice(i, 1);
 
   // Sinal pelos saldos: testa ordem cronológica (saldo sobe/desce com o movimento) e ordem inversa
   const comSaldo = itens.map((it, i) => ({ it, i })).filter(({ it }) => it.saldo !== null && it.saldo !== undefined);
