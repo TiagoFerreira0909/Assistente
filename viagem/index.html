@@ -339,13 +339,13 @@ function handle(u){ const m = u.match(/tiktok\.com\/(@[^/]+)/); if (m) return m[
 
 // ── Vídeo ──
 function openVideo(url){
-  const tt = url.match(/tiktok\.com\/@[^/]+\/(?:video|photo)\/(\d+)/);
+  const tt = url.match(/tiktok\.com\/@[^/]+\/(video|photo)\/(\d+)/);
   const ig = url.match(/instagram\.com\/(?:reel|p|reels)\/([^/?#]+)/);
-  const src = tt ? `https://www.tiktok.com/embed/v2/${tt[1]}` : ig ? `https://www.instagram.com/p/${ig[1]}/embed` : null;
+  const src = tt ? (tt[1] === "video" ? `https://www.tiktok.com/player/v1/${tt[2]}?description=1&rel=0` : `https://www.tiktok.com/embed/v2/${tt[2]}`) : ig ? `https://www.instagram.com/p/${ig[1]}/embed` : null;
   openModal(`
     <div class="modal-head"><h4>${esc(handle(url))}</h4><button class="x" data-close aria-label="Fechar">×</button></div>
     ${src ? `<div class="frame"><iframe src="${src}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe></div>` : ""}
-    <a class="open-tt" href="${esc(url)}" target="_blank" rel="noopener">Abrir na app ›</a>`);
+    <a class="btn primary" style="margin-top:12px" href="${esc(url)}" target="_blank" rel="noopener">Abrir no ${ig ? "Instagram" : "TikTok"}</a>`);
 }
 function openModal(html){
   $("#modal-box").innerHTML = html; $("#modal").hidden = false;
