@@ -6,464 +6,477 @@
 <title>Mapa da Viagem</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Viagem">
-<meta name="theme-color" content="#0f3b3a">
+<meta name="theme-color" content="#f6f6f4">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.css">
 <style>
-/* Layout: mapa a ecrã inteiro, barra de cidade/filtros em cima, folha deslizante em baixo (tipo Google Maps). */
+/* Mapa a ecrã inteiro e pouca interface por cima: cidade e filtros no topo, folha deslizante em baixo. */
 :root{
-  --bg:#f5f4ef; --surface:#ffffff; --ink:#18201f; --muted:#66706e; --line:#e2e1da;
-  --brand:#0f3b3a; --brand-ink:#ffffff;
-  --comer:#d9532b; --beber:#b8860b; --ver:#1d7f86; --fazer:#6b4bb5; --meu:#c2337a;
-  --me:#2f6fed;
-  --display:"Bricolage Grotesque", -apple-system, system-ui, sans-serif;
-  --body:-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --bg:#f6f6f4; --glass:rgba(255,255,255,.86); --surface:#ffffff; --ink:#111;
+  --muted:#8a8a86; --line:rgba(0,0,0,.07); --soft:#f1f1ef;
+  --comer:#e0603b; --beber:#d39a1c; --ver:#2a8c8f; --fazer:#7458c4;
+  --me:#2f6fed; --ok:#2e9a5b;
+  --font:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
   --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
-  --shadow:0 6px 24px rgba(10,30,30,.18);
+  --shadow:0 4px 20px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.06);
 }
 @media (prefers-color-scheme: dark){
-  :root{ --bg:#121716; --surface:#1b2221; --ink:#eef1ef; --muted:#9aa5a2; --line:#2b3432;
-    --brand:#7fd1c7; --brand-ink:#0d1d1c; --shadow:0 6px 24px rgba(0,0,0,.5); color-scheme:dark }
+  :root{ --bg:#0e0f10; --glass:rgba(28,29,31,.86); --surface:#1c1d1f; --ink:#f2f2f0;
+    --muted:#8d8e8c; --line:rgba(255,255,255,.08); --soft:#26272a; color-scheme:dark;
+    --shadow:0 4px 20px rgba(0,0,0,.4) }
 }
 [hidden]{display:none!important}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--body);overflow:hidden}
-button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
-#map{position:fixed;inset:0;background:var(--bg)}
-.leaflet-control-attribution{font-size:10px;margin-bottom:calc(var(--sheet-peek,150px) + 4px)!important}
+body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--font);overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;padding:0}
+#map{position:fixed;inset:0}
+.maplibregl-ctrl-attrib{font-size:9px;opacity:.6}
+.maplibregl-ctrl-bottom-right{bottom:calc(var(--peek,120px) - 4px)}
+.glass{background:var(--glass);-webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6);box-shadow:var(--shadow)}
 
-/* Barra de topo */
-.top{position:fixed;left:0;right:0;top:0;z-index:500;padding:calc(var(--safe-t) + 10px) 12px 0;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+/* Topo */
+.top{position:fixed;left:0;right:0;top:0;z-index:5;padding:calc(var(--safe-t) + 10px) 14px 0;display:flex;flex-direction:column;align-items:flex-start;gap:8px;pointer-events:none}
 .top > *{pointer-events:auto}
-.cities{display:flex;background:var(--surface);border-radius:14px;padding:4px;box-shadow:var(--shadow);align-self:flex-start}
-.cities button{padding:8px 16px;border-radius:10px;font:600 16px var(--display);letter-spacing:.01em}
-.cities button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink)}
-.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+.toprow{display:flex;gap:8px;width:100%;align-items:center}
+.cities{display:flex;border-radius:999px;padding:3px}
+.cities button{padding:7px 14px;border-radius:999px;font-weight:600;font-size:14px;color:var(--muted)}
+.cities button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.iconbtn{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;margin-left:auto}
+.iconbtn svg{width:19px;height:19px}
+.iconbtn.on{color:var(--me)}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;max-width:100%}
 .chips::-webkit-scrollbar{display:none}
-.chip{flex:none;display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.12);font-weight:600;font-size:14px}
-.chip i{width:10px;height:10px;border-radius:50%;background:var(--c)}
-.chip[aria-pressed="true"]{background:var(--c);color:#fff}
-.chip[aria-pressed="true"] i{background:#fff}
+.chip{flex:none;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600;color:var(--ink)}
+.chip i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--c);margin-right:6px;vertical-align:1px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 
-/* Botões flutuantes */
-.fab{position:fixed;right:12px;z-index:500;width:48px;height:48px;border-radius:50%;background:var(--surface);box-shadow:var(--shadow);display:grid;place-items:center}
-.fab svg{width:22px;height:22px}
-#locate{bottom:calc(var(--sheet-peek,150px) + 14px)}
-#add{bottom:calc(var(--sheet-peek,150px) + 70px);background:var(--brand);color:var(--brand-ink)}
-#locate.on{color:var(--me)}
+/* Botões do mapa */
+.fabs{position:fixed;right:14px;z-index:5;display:flex;flex-direction:column;gap:10px;bottom:calc(var(--peek,120px) + 16px);transition:bottom .3s cubic-bezier(.2,.8,.2,1)}
+.fab{width:44px;height:44px;border-radius:50%;display:grid;place-items:center}
+.fab svg{width:20px;height:20px}
+.fab.on{color:var(--me)}
 
 /* Marcadores */
-.pin{width:30px;height:30px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:var(--c);border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);display:grid;place-items:center}
-.pin b{transform:rotate(45deg);color:#fff;font:800 13px var(--display)}
-.pin.done{opacity:.45}
-.pin.sel{outline:3px solid var(--ink);outline-offset:1px}
-.me-dot{width:18px;height:18px;border-radius:50%;background:var(--me);border:3px solid #fff;box-shadow:0 0 0 6px rgba(47,111,237,.25)}
+.mk{--s:44px;width:var(--s);height:var(--s);border-radius:50%;background:var(--c) center/cover no-repeat;border:2.5px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.28);position:relative;transition:width .2s,height .2s;cursor:pointer;display:grid;place-items:center;color:#fff}
+.mk::after{content:"";position:absolute;right:-3px;bottom:-3px;width:12px;height:12px;border-radius:50%;background:var(--c);border:2px solid #fff}
+.mk.noimg::after{display:none}
+.mk svg{width:45%;height:45%}
+.mk.small{--s:30px}
+.mk.small::after{width:9px;height:9px}
+.mk.done{filter:grayscale(1);opacity:.55}
+.mk.sel{--s:58px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.maplibregl-marker:has(.mk.sel){z-index:3}
+.me{width:16px;height:16px;border-radius:50%;background:var(--me);border:3px solid #fff;box-shadow:0 0 0 7px rgba(47,111,237,.18),0 1px 4px rgba(0,0,0,.3)}
 
-/* Folha inferior */
-.sheet{position:fixed;left:0;right:0;bottom:0;z-index:600;background:var(--surface);border-radius:20px 20px 0 0;box-shadow:0 -6px 24px rgba(0,0,0,.15);display:flex;flex-direction:column;height:calc(var(--sheet-h,150px) + var(--safe-b));transition:height .28s cubic-bezier(.2,.8,.2,1);padding-bottom:var(--safe-b)}
+/* Folha */
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-radius:22px 22px 0 0;box-shadow:0 -2px 24px rgba(0,0,0,.08);display:flex;flex-direction:column;height:calc(var(--h,120px) + var(--safe-b));transition:height .3s cubic-bezier(.2,.8,.2,1);padding-bottom:var(--safe-b)}
 .sheet.drag{transition:none}
-.grab{padding:8px 16px 6px;touch-action:none;cursor:grab}
-.grab::before{content:"";display:block;width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 10px}
-.sheet-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
-.sheet-head h2{margin:0;font:800 20px/1.1 var(--display)}
-.sheet-head span{color:var(--muted);font-size:13px}
-.list{overflow-y:auto;flex:1;padding:0 8px 16px;-webkit-overflow-scrolling:touch}
-.tips{margin:4px 8px 10px;padding:10px 12px;border-radius:12px;background:var(--bg);font-size:13px;color:var(--muted)}
-.tips summary{font-weight:700;color:var(--ink);cursor:pointer}
-.tips ul{margin:8px 0 0;padding-left:18px;display:grid;gap:6px}
-.row{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:10px 8px;border-radius:12px}
-.row:active{background:var(--bg)}
-.row .dot{flex:none;width:36px;height:36px;border-radius:10px;background:var(--c);display:grid;place-items:center;color:#fff;font:800 15px var(--display)}
+.grab{padding:8px 20px 4px;touch-action:none;cursor:grab;flex:none}
+.grab::before{content:"";display:block;width:36px;height:4px;border-radius:2px;background:var(--muted);opacity:.35;margin:0 auto 12px}
+.head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding-bottom:6px}
+.head h2{margin:0;font-size:20px;font-weight:700;letter-spacing:-.01em}
+.head span{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.scroll{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.list{padding:0 12px 20px}
+.row{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:8px;border-radius:14px}
+.row:active{background:var(--soft)}
+.th{flex:none;width:52px;height:52px;border-radius:12px;background:var(--c) center/cover no-repeat;display:grid;place-items:center;color:#fff}
+.th svg{width:22px;height:22px}
 .row .txt{flex:1;min-width:0}
-.row .nm{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row .sub{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.row .dist{flex:none;font-size:13px;font-weight:650;color:var(--muted);font-variant-numeric:tabular-nums}
-.row.done .nm{text-decoration:line-through;color:var(--muted)}
-.empty{padding:24px 12px;color:var(--muted);text-align:center}
+.row .dist{flex:none;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.row.done .th{filter:grayscale(1);opacity:.5}
+.row.done .nm{color:var(--muted)}
+.tips{margin:0 8px 8px;font-size:13px;color:var(--muted)}
+.tips summary{list-style:none;cursor:pointer;color:var(--ink);font-weight:600;padding:6px 0}
+.tips summary::-webkit-details-marker{display:none}
+.tips summary::after{content:" ›";color:var(--muted)}
+.tips ul{margin:2px 0 6px;padding-left:16px;display:grid;gap:6px}
+.empty{padding:28px 12px;color:var(--muted);text-align:center}
 
 /* Detalhe */
-.detail{padding:0 16px 16px;overflow-y:auto;flex:1}
-.detail .cat{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--c)}
-.detail .cat i{width:8px;height:8px;border-radius:50%;background:var(--c)}
-.detail h3{margin:4px 0 2px;font:800 24px/1.15 var(--display);text-wrap:balance}
-.detail .meta{color:var(--muted);font-size:13px;margin-bottom:10px}
-.detail p{margin:0 0 10px}
-.detail .tip{background:var(--bg);border-radius:12px;padding:10px 12px;font-size:14px}
-.detail .tip b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:2px}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
-.btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;border-radius:12px;background:var(--bg);font-weight:650;text-decoration:none;color:var(--ink)}
-.btn.primary{background:var(--brand);color:var(--brand-ink)}
-.btn.done{background:#2e8b57;color:#fff}
+.detail{padding:0 20px 24px}
+.dtop{display:flex;gap:14px;align-items:center;margin:2px 0 14px}
+.dtop .th{width:72px;height:72px;border-radius:16px}
+.dtop .th svg{width:30px;height:30px}
+.kicker{font-size:12px;font-weight:600;color:var(--c);letter-spacing:.02em}
+.detail h3{margin:2px 0 0;font-size:22px;line-height:1.15;font-weight:700;letter-spacing:-.015em;text-wrap:balance}
+.meta{color:var(--muted);font-size:13px;margin-top:3px;font-variant-numeric:tabular-nums}
+.detail p{margin:0 0 12px}
+.tip{color:var(--muted);font-size:14px;border-left:2px solid var(--soft);padding-left:10px;margin:0 0 16px}
+.actions{display:flex;gap:8px;margin-bottom:16px}
+.btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;border-radius:12px;background:var(--soft);font-weight:600;font-size:14px;text-decoration:none;color:var(--ink)}
+.btn.dark{background:var(--ink);color:var(--bg)}
+.btn.ok{background:var(--ok);color:#fff}
+.btn svg{width:17px;height:17px}
 .vids{display:grid;gap:8px}
-.vid{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);width:100%;text-align:left}
-.vid svg{flex:none;width:28px;height:28px}
-.vid small{display:block;color:var(--muted)}
-.back{display:flex;align-items:center;gap:4px;color:var(--muted);font-weight:600;padding:2px 0 8px}
+.vid{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px;border-radius:14px;background:var(--soft)}
+.vid .play{width:36px;height:36px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;flex:none}
+.vid .play svg{width:14px;height:14px;margin-left:2px}
+.vid b{font-weight:600;font-size:14px}
+.vid small{display:block;color:var(--muted);font-size:12px}
+.back{display:inline-flex;align-items:center;gap:2px;color:var(--muted);font-size:14px;font-weight:600;padding:2px 0 10px}
+.link{display:block;width:100%;text-align:center;color:var(--muted);font-size:13px;padding:14px 0 0}
 
-/* Modal (vídeo / adicionar) */
-.modal{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
-.modal-box{background:var(--surface);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:14px 16px calc(16px + var(--safe-b));max-height:92vh;overflow-y:auto}
-.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.modal-head h4{margin:0;font:800 18px var(--display)}
-.x{width:36px;height:36px;border-radius:50%;background:var(--bg);font-size:20px;line-height:1}
-.frame{position:relative;width:100%;max-width:340px;margin:0 auto;aspect-ratio:9/16;max-height:72vh;border-radius:12px;overflow:hidden;background:#000}
+/* Modal */
+.modal{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}
+.mbox{background:var(--surface);width:100%;max-width:520px;border-radius:22px 22px 0 0;padding:16px 18px calc(18px + var(--safe-b));max-height:94vh;overflow-y:auto}
+.mhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.mhead h4{margin:0;font-size:17px;font-weight:700}
+.x{width:32px;height:32px;border-radius:50%;background:var(--soft);display:grid;place-items:center}
+.x svg{width:14px;height:14px}
+.frame{position:relative;width:100%;max-width:340px;margin:0 auto;aspect-ratio:9/16;max-height:70vh;border-radius:14px;overflow:hidden;background:#000}
 .frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-.open-tt{display:block;text-align:center;margin-top:10px;color:var(--muted);font-size:14px}
-form{display:grid;gap:12px}
-label{display:grid;gap:4px;font-size:13px;font-weight:650;color:var(--muted)}
-input,select,textarea{font:16px var(--body);padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
-textarea{min-height:70px;resize:vertical}
+form{display:grid;gap:14px}
+label{display:grid;gap:6px;font-size:13px;font-weight:600;color:var(--muted)}
+input,textarea{font:16px var(--font);padding:12px;border-radius:12px;border:0;background:var(--soft);color:var(--ink);width:100%}
+textarea{min-height:72px;resize:vertical}
 .seg{display:flex;gap:6px;flex-wrap:wrap}
-.seg button{padding:8px 12px;border-radius:999px;border:1px solid var(--line);font-weight:600;font-size:14px}
-.seg button[aria-pressed="true"]{background:var(--c,var(--brand));border-color:transparent;color:#fff}
-.hint{font-size:13px;color:var(--muted);margin:0}
-.toast{position:fixed;left:50%;top:calc(var(--safe-t) + 110px);transform:translateX(-50%);z-index:1000;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;box-shadow:var(--shadow)}
-.picking .top,.picking .sheet,.picking .fab{display:none}
-.pick-bar{position:fixed;left:12px;right:12px;bottom:calc(var(--safe-b) + 16px);z-index:700;background:var(--surface);border-radius:14px;box-shadow:var(--shadow);padding:12px;display:flex;align-items:center;gap:10px}
-.pick-bar p{margin:0;flex:1;font-weight:600}
-.crosshair{position:fixed;left:50%;top:50%;z-index:650;width:30px;height:30px;margin:-36px 0 0 -15px;pointer-events:none}
-@media (prefers-color-scheme: dark){.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9)}}
-@media (prefers-reduced-motion: reduce){.sheet{transition:none}}
+.seg button{padding:8px 13px;border-radius:999px;background:var(--soft);font-weight:600;font-size:14px;color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.seg button:disabled{opacity:.4}
+.hint{font-size:13px;color:var(--muted);margin:0;font-weight:400}
+
+/* Aviso de proximidade dentro da app */
+.near{position:fixed;left:14px;right:14px;top:calc(var(--safe-t) + 10px);z-index:15;border-radius:18px;padding:10px;display:flex;gap:12px;align-items:center;text-align:left;animation:drop .35s cubic-bezier(.2,.8,.2,1)}
+.near .th{width:48px;height:48px}
+.near b{display:block;font-size:14px}
+.near span.t{font-size:13px;color:var(--muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+@keyframes drop{from{transform:translateY(-120%)}to{transform:none}}
+.toast{position:fixed;left:50%;bottom:calc(var(--peek,120px) + 20px);transform:translateX(-50%);z-index:30;background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-weight:600;font-size:13px;white-space:nowrap}
+.picking .top,.picking .sheet,.picking .fabs{display:none}
+.pickbar{position:fixed;left:14px;right:14px;bottom:calc(var(--safe-b) + 16px);z-index:12;border-radius:18px;padding:10px 10px 10px 16px;display:flex;align-items:center;gap:8px}
+.pickbar p{margin:0;flex:1;font-weight:600;font-size:14px}
+.pickbar .btn{flex:none;padding:10px 14px}
+.cross{position:fixed;left:50%;top:50%;z-index:11;pointer-events:none;transform:translate(-50%,-50%)}
+@media (prefers-reduced-motion: reduce){.sheet,.fabs,.mk{transition:none}.near{animation:none}}
 </style>
 </head>
 <body>
 <div id="map"></div>
 
 <div class="top">
-  <div class="cities" role="group" aria-label="Cidade">
-    <button id="city-edi" aria-pressed="true" data-city="edi">Edimburgo</button>
-    <button id="city-dub" aria-pressed="false" data-city="dub">Dublin</button>
+  <div class="toprow">
+    <div class="cities glass" role="group" aria-label="Cidade">
+      <button data-city="edi" aria-pressed="true">Edimburgo</button>
+      <button data-city="dub" aria-pressed="false">Dublin</button>
+    </div>
+    <button class="iconbtn glass" id="bell" aria-label="Avisos quando estiveres perto"></button>
   </div>
   <div class="chips" id="chips"></div>
 </div>
 
-<button class="fab" id="add" aria-label="Adicionar sítio">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-</button>
-<button class="fab" id="locate" aria-label="Centrar na minha localização">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
-</button>
+<div class="fabs">
+  <button class="fab glass" id="add" aria-label="Adicionar sítio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="fab glass" id="locate" aria-label="A minha localização"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.9 3.1a.8.8 0 0 0-.9-.2L3.5 9.6a.8.8 0 0 0 .1 1.5l6.8 2.5 2.5 6.8a.8.8 0 0 0 1.5.1L21 4a.8.8 0 0 0-.1-.9z"/></svg></button>
+</div>
 
 <section class="sheet" id="sheet">
-  <div class="grab" id="grab">
-    <div class="sheet-head"><h2 id="sheet-title">Perto de ti</h2><span id="sheet-count"></span></div>
+  <div class="grab" id="grab"><div class="head" id="head"><h2 id="title">Edimburgo</h2><span id="count"></span></div></div>
+  <div class="scroll" id="scroll">
+    <div class="list" id="list"></div>
+    <div class="detail" id="detail" hidden></div>
   </div>
-  <div class="list" id="list"></div>
-  <div class="detail" id="detail" hidden></div>
 </section>
 
-<div class="modal" id="modal" hidden><div class="modal-box" id="modal-box"></div></div>
+<div class="modal" id="modal" hidden><div class="mbox" id="mbox"></div></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script src="places.js"></script>
 <script>
-const CATS = {
-  comer:{label:"Comer", letter:"C", color:"var(--comer)"},
-  beber:{label:"Beber", letter:"B", color:"var(--beber)"},
-  ver:{label:"Ver", letter:"V", color:"var(--ver)"},
-  fazer:{label:"Fazer", letter:"F", color:"var(--fazer)"},
+const ICON = {
+  comer:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3v8a2 2 0 0 0 4 0V3M9 11v10M17 3c-1.7 1-3 3-3 6s1.3 3 3 3v9"/></svg>',
+  beber:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l-1.5 7a4.5 4.5 0 0 1-9 0zM12 15v6M8 21h8"/></svg>',
+  ver:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  fazer:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 2.5 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5-4.8-4.6 6.6-.9z"/></svg>',
+  play:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  walk:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2"/><path d="m9 21 2-6 3 3v3M7 11l3-3 4 1 2 4h3M10 8l-1 5"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>',
+  bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>',
+  belloff:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0M3 3l18 18"/></svg>',
 };
-const CITY = {
-  edi:{name:"Edimburgo", center:[55.9515,-3.1960], zoom:14},
-  dub:{name:"Dublin", center:[53.3440,-6.2650], zoom:14},
-};
-const store = {
-  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
-  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
-};
+const CATS = {comer:{label:"Comer",color:"var(--comer)"}, beber:{label:"Beber",color:"var(--beber)"}, ver:{label:"Ver",color:"var(--ver)"}, fazer:{label:"Fazer",color:"var(--fazer)"}};
+const CITY = {edi:{name:"Edimburgo",center:[-3.196,55.9515],zoom:13.6}, dub:{name:"Dublin",center:[-6.265,53.344],zoom:13.6}};
+const NEAR_M = 150;           // distância (m) para avisar
+const NEAR_AGAIN_H = 6;       // não repetir o aviso do mesmo sítio antes de X horas
+const SMALL_Z = 13.2;         // abaixo deste zoom os pinos ficam pequenos
 
-let state = {
-  city: store.get("city", "edi"),
-  filter: null,
-  done: new Set(store.get("done", [])),
-  mine: store.get("mine", []),
-  me: null, follow: false, selected: null,
+const store = {
+  get(k,d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const S = {
+  city: store.get("city","edi"), filter:null, selected:null,
+  done: new Set(store.get("done",[])), mine: store.get("mine",[]),
+  alerts: store.get("alerts", false), notified: store.get("notified",{}),
+  me:null, follow:false,
 };
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-
-function allPlaces(){ return PLACES.concat(state.mine.map(p => ({...p, mine:true}))); }
-function cssVar(v){ return getComputedStyle(document.documentElement).getPropertyValue(v.slice(4,-1)).trim(); }
+const all = () => PLACES.concat(S.mine.map(p => ({...p, mine:true})));
+const byId = id => all().find(p => p.id === id);
+const img = p => THUMBS.has(p.id) ? `thumbs/${encodeURIComponent(p.id)}.jpg` : null;
+function thumbHTML(p){
+  const c = CATS[p.cat] || CATS.ver, u = img(p);
+  return u ? `<span class="th" style="--c:${c.color};background-image:url('${u}')"></span>`
+           : `<span class="th" style="--c:${c.color}">${ICON[p.cat]||ICON.ver}</span>`;
+}
 
 // ── Mapa ──
-const map = L.map("map", {zoomControl:false, attributionControl:true}).setView(CITY[state.city].center, CITY[state.city].zoom);
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19,
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-}).addTo(map);
+const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+const map = new maplibregl.Map({
+  container:"map", style:`https://tiles.openfreemap.org/styles/${dark ? "dark" : "positron"}`,
+  center:CITY[S.city].center, zoom:CITY[S.city].zoom, attributionControl:false, pitchWithRotate:false, dragRotate:false,
+});
+map.addControl(new maplibregl.AttributionControl({compact:true}), "bottom-right");
+map.touchZoomRotate.disableRotation();
 
-const layer = L.layerGroup().addTo(map);
 let markers = {};
 function drawMarkers(){
-  layer.clearLayers(); markers = {};
-  for (const p of allPlaces()){
-    if (p.city !== state.city) continue;
-    if (state.filter && p.cat !== state.filter) continue;
-    const c = CATS[p.cat] || CATS.ver;
-    const cls = ["pin", state.done.has(p.id) ? "done" : "", state.selected === p.id ? "sel" : ""].join(" ");
-    const icon = L.divIcon({className:"", html:`<div class="${cls}" style="--c:${c.color}"><b>${c.letter}</b></div>`, iconSize:[30,30], iconAnchor:[15,36]});
-    const m = L.marker([p.lat, p.lng], {icon, zIndexOffset: state.selected === p.id ? 1000 : 0}).addTo(layer);
-    m.on("click", () => openDetail(p.id, false));
-    markers[p.id] = m;
+  Object.values(markers).forEach(m => m.remove()); markers = {};
+  const small = map.getZoom() < SMALL_Z;
+  for (const p of all()){
+    if (p.city !== S.city || (S.filter && p.cat !== S.filter)) continue;
+    const c = CATS[p.cat] || CATS.ver, u = img(p);
+    const el = document.createElement("div");
+    el.className = ["mk", u ? "" : "noimg", small ? "small" : "", S.done.has(p.id) ? "done" : "", S.selected === p.id ? "sel" : ""].join(" ");
+    el.style.setProperty("--c", c.color);
+    if (u) el.style.backgroundImage = `url('${u}')`; else el.innerHTML = ICON[p.cat] || ICON.ver;
+    el.addEventListener("click", e => { e.stopPropagation(); openDetail(p.id, false); });
+    markers[p.id] = new maplibregl.Marker({element:el}).setLngLat([p.lng,p.lat]).addTo(map);
   }
 }
+map.on("zoom", () => { const s = map.getZoom() < SMALL_Z; Object.values(markers).forEach(m => m.getElement().classList.toggle("small", s)); });
+map.on("dragstart", () => { S.follow = false; $("#locate").classList.remove("on"); });
 
 // ── Localização ──
-let meMarker = null, meCircle = null;
+let meMarker = null;
 function startGeo(){
-  if (!navigator.geolocation) return toast("Este dispositivo não dá a localização.");
+  if (!navigator.geolocation) return toast("Sem localização neste dispositivo");
   navigator.geolocation.watchPosition(pos => {
-    const ll = [pos.coords.latitude, pos.coords.longitude];
-    const first = !state.me;
-    state.me = ll;
-    if (!meMarker){
-      meMarker = L.marker(ll, {icon:L.divIcon({className:"", html:'<div class="me-dot"></div>', iconSize:[18,18], iconAnchor:[9,9]}), interactive:false, zIndexOffset:2000}).addTo(map);
-      meCircle = L.circle(ll, {radius:pos.coords.accuracy, color:"#2f6fed", weight:1, fillOpacity:.08, interactive:false}).addTo(map);
-    } else { meMarker.setLatLng(ll); meCircle.setLatLng(ll).setRadius(pos.coords.accuracy); }
+    const ll = [pos.coords.longitude, pos.coords.latitude], first = !S.me;
+    S.me = ll;
+    if (!meMarker){ const el = document.createElement("div"); el.className = "me"; meMarker = new maplibregl.Marker({element:el}).setLngLat(ll).addTo(map); }
+    else meMarker.setLngLat(ll);
     if (first){
-      // Se estou numa das cidades, muda para ela automaticamente
       const near = Object.entries(CITY).find(([k,c]) => dist(ll, c.center) < 40000);
-      if (near && near[0] !== state.city) setCity(near[0], false);
-      if (near) map.setView(ll, 15);
+      if (near){ if (near[0] !== S.city) setCity(near[0], false); map.jumpTo({center:ll, zoom:15}); }
     }
-    if (state.follow) map.panTo(ll);
-    renderList();
-    if (state.selected) refreshDetailMeta();
-  }, err => {
-    $("#locate").classList.remove("on");
-    if (err.code === 1) toast("Permite a localização nas definições do Safari para ver o que tens perto.");
-  }, {enableHighAccuracy:true, maximumAge:10000});
+    if (S.follow) map.easeTo({center:ll});
+    renderList(); refreshMeta(); checkNear();
+  }, err => { $("#locate").classList.remove("on"); if (err.code === 1) toast("Ativa a localização do Safari nas Definições"); },
+  {enableHighAccuracy:true, maximumAge:5000});
 }
-function dist(a, b){
-  const R = 6371000, toR = x => x*Math.PI/180;
-  const dLat = toR(b[0]-a[0]), dLng = toR(b[1]-a[1]);
-  const h = Math.sin(dLat/2)**2 + Math.cos(toR(a[0]))*Math.cos(toR(b[0]))*Math.sin(dLng/2)**2;
+function dist(a,b){ // [lng,lat]
+  const R=6371000, r=x=>x*Math.PI/180, dLa=r(b[1]-a[1]), dLo=r(b[0]-a[0]);
+  const h=Math.sin(dLa/2)**2+Math.cos(r(a[1]))*Math.cos(r(b[1]))*Math.sin(dLo/2)**2;
   return 2*R*Math.asin(Math.sqrt(h));
 }
-function fmtDist(m){
-  if (m < 1000) return `${Math.round(m/10)*10} m`;
-  if (m < 20000) return `${(m/1000).toFixed(1).replace(".", ",")} km`;
-  return `${Math.round(m/1000)} km`;
+const fmt = m => m < 1000 ? `${Math.round(m/10)*10} m` : m < 20000 ? `${(m/1000).toFixed(1).replace(".",",")} km` : `${Math.round(m/1000)} km`;
+const walkMin = m => { const n = Math.round(m/80); return n < 60 ? `${Math.max(1,n)} min a pé` : ""; };
+
+// ── Avisos de proximidade ──
+function bellUI(){ $("#bell").innerHTML = S.alerts ? ICON.bell : ICON.belloff; $("#bell").classList.toggle("on", S.alerts); }
+$("#bell").onclick = async () => {
+  if (S.alerts){ S.alerts = false; store.set("alerts", false); bellUI(); return toast("Avisos desligados"); }
+  let perm = "Notification" in window ? Notification.permission : "unsupported";
+  if (perm === "default"){ try{ perm = await Notification.requestPermission(); }catch(e){} }
+  S.alerts = true; store.set("alerts", true); bellUI();
+  if (!S.me) startGeo();
+  toast(perm === "granted" ? `Aviso-te a menos de ${NEAR_M} m de um sítio` : "Avisos ligados (só com a app aberta)");
+  checkNear();
+};
+async function checkNear(){
+  if (!S.alerts || !S.me) return;
+  const now = Date.now();
+  const hits = all().filter(p => !S.done.has(p.id) && dist(S.me,[p.lng,p.lat]) <= NEAR_M && now - (S.notified[p.id]||0) > NEAR_AGAIN_H*3600e3)
+                    .sort((a,b) => dist(S.me,[a.lng,a.lat]) - dist(S.me,[b.lng,b.lat]));
+  if (!hits.length) return;
+  const p = hits[0];
+  S.notified[p.id] = now; store.set("notified", S.notified);
+  const title = `Estás perto de ${p.name}`, body = [p.what, p.tip].filter(Boolean).join(" ");
+  if ("Notification" in window && Notification.permission === "granted"){
+    try{
+      const reg = await navigator.serviceWorker?.getRegistration();
+      if (reg) await reg.showNotification(title, {body, icon: img(p) || "icon-192.png", tag:p.id, data:{id:p.id}});
+      else new Notification(title, {body, icon: img(p) || "icon-192.png", tag:p.id});
+    }catch(e){}
+  }
+  if (document.visibilityState === "visible") showNearBanner(p, title);
 }
-function walk(m){ const min = Math.round(m/80); return min < 60 ? `${Math.max(1,min)} min a pé` : ""; }
+function showNearBanner(p, title){
+  document.querySelector(".near")?.remove();
+  const b = document.createElement("button"); b.className = "near glass";
+  b.innerHTML = `${thumbHTML(p)}<span style="min-width:0"><b>${esc(title)}</b><span class="t">${esc(p.what)}</span></span>`;
+  b.onclick = () => { b.remove(); openDetail(p.id, true); };
+  document.body.appendChild(b); setTimeout(() => b.remove(), 9000);
+}
+navigator.serviceWorker?.addEventListener("message", e => { if (e.data?.open) openDetail(e.data.open, true); });
 
 // ── Lista ──
 function visible(){
-  let ps = allPlaces().filter(p => p.city === state.city && (!state.filter || p.cat === state.filter));
-  if (state.me) ps.forEach(p => p._d = dist(state.me, [p.lat, p.lng]));
-  ps.sort((a,b) => (state.done.has(a.id) - state.done.has(b.id)) || (state.me ? a._d - b._d : a.name.localeCompare(b.name)));
-  return ps;
+  const ps = all().filter(p => p.city === S.city && (!S.filter || p.cat === S.filter));
+  if (S.me) ps.forEach(p => p._d = dist(S.me, [p.lng,p.lat]));
+  return ps.sort((a,b) => (S.done.has(a.id) - S.done.has(b.id)) || (S.me ? a._d - b._d : a.name.localeCompare(b.name)));
 }
 function renderList(){
-  const ps = visible();
-  const inCity = state.me && dist(state.me, CITY[state.city].center) < 40000;
-  $("#sheet-title").textContent = inCity ? "Perto de ti" : CITY[state.city].name;
-  const left = ps.filter(p => !state.done.has(p.id)).length;
-  $("#sheet-count").textContent = `${left} por fazer · ${ps.length - left} feitos`;
-  const tips = (CITY_TIPS[state.city]||[]);
-  $("#list").innerHTML =
-    (tips.length ? `<details class="tips"><summary>Dicas para ${CITY[state.city].name}</summary><ul>${tips.map(t=>`<li>${esc(t)}</li>`).join("")}</ul></details>` : "") +
-    (ps.length ? ps.map(p => {
-      const c = CATS[p.cat] || CATS.ver;
-      return `<button class="row ${state.done.has(p.id)?"done":""}" data-id="${esc(p.id)}">
-        <span class="dot" style="--c:${c.color}">${c.letter}</span>
-        <span class="txt"><div class="nm">${esc(p.name)}</div><div class="sub">${esc(p.what)}</div></span>
-        ${state.me ? `<span class="dist">${fmtDist(p._d)}</span>` : ""}
-      </button>`; }).join("") : `<div class="empty">Nada nesta categoria.</div>`);
+  const ps = visible(), inCity = S.me && dist(S.me, CITY[S.city].center) < 40000;
+  $("#title").textContent = inCity ? "Perto de ti" : CITY[S.city].name;
+  const left = ps.filter(p => !S.done.has(p.id)).length;
+  $("#count").textContent = left < ps.length ? `${left} de ${ps.length} por ver` : `${ps.length} sítios`;
+  const tips = CITY_TIPS[S.city] || [];
+  $("#list").innerHTML = (tips.length ? `<details class="tips"><summary>Dicas para ${CITY[S.city].name}</summary><ul>${tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul></details>` : "") +
+    (ps.length ? ps.map(p => `<button class="row ${S.done.has(p.id)?"done":""}" data-id="${esc(p.id)}">${thumbHTML(p)}
+      <span class="txt"><div class="nm">${esc(p.name)}</div><div class="sub">${esc(p.what)}</div></span>
+      ${S.me ? `<span class="dist">${fmt(p._d)}</span>` : ""}</button>`).join("") : `<div class="empty">Nada nesta categoria.</div>`);
 }
-$("#list").addEventListener("click", e => {
-  const r = e.target.closest(".row"); if (r) openDetail(r.dataset.id, true);
-});
+$("#list").addEventListener("click", e => { const r = e.target.closest(".row"); if (r) openDetail(r.dataset.id, true); });
 
 // ── Detalhe ──
 function openDetail(id, fly){
-  const p = allPlaces().find(x => x.id === id); if (!p) return;
-  state.selected = id; drawMarkers();
-  const c = CATS[p.cat] || CATS.ver;
-  const vids = (p.videos||[]).map(v => VIDEOS[v] || v);
-  const done = state.done.has(id);
+  const p = byId(id); if (!p) return;
+  if (p.city !== S.city) setCity(p.city, false);
+  S.selected = id; drawMarkers();
+  const c = CATS[p.cat] || CATS.ver, done = S.done.has(id), vids = (p.videos||[]).map(v => VIDEOS[v] || v);
   $("#detail").innerHTML = `
-    <button class="back" id="back">‹ Lista</button>
-    <span class="cat" style="--c:${c.color}"><i></i>${c.label}${p.mine ? " · adicionado por ti" : ""}</span>
-    <h3>${esc(p.name)}</h3>
-    <div class="meta" id="detail-meta"></div>
+    <button class="back" id="back">‹ Todos</button>
+    <div class="dtop">${thumbHTML(p)}<div style="min-width:0"><div class="kicker" style="--c:${c.color}">${c.label}${p.mine ? " · teu" : ""}</div><h3>${esc(p.name)}</h3><div class="meta" id="meta"></div></div></div>
     ${p.what ? `<p>${esc(p.what)}</p>` : ""}
-    ${p.tip ? `<div class="tip"><b>Dica</b>${esc(p.tip)}</div>` : ""}
+    ${p.tip ? `<p class="tip">${esc(p.tip)}</p>` : ""}
     <div class="actions">
-      <a class="btn primary" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=walking">Ir para lá</a>
-      <button class="btn ${done?"done":""}" id="toggle-done">${done ? "✓ Já fui" : "Marcar como feito"}</button>
+      <a class="btn dark" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=walking">${ICON.walk}Ir</a>
+      <button class="btn ${done?"ok":""}" id="done">${ICON.check}${done ? "Já fui" : "Marcar como visto"}</button>
     </div>
-    ${vids.length ? `<div class="vids">${vids.map((u,i) => `
-      <button class="vid" data-url="${esc(u)}">
-        <svg viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="#000"/><path d="M15.6 6h2.6c.2 1.9 1.6 3.4 3.5 3.6v2.6c-1.3 0-2.5-.4-3.5-1.1v5.3a5 5 0 1 1-5-5v2.7a2.3 2.3 0 1 0 2.4 2.3z" fill="#fff"/></svg>
-        <span><b>Ver ${p.videos.length > 1 ? "vídeo " + (i+1) : "vídeo"}</b><small>${esc(handle(u))}</small></span>
-      </button>`).join("")}</div>` : ""}
-    ${p.mine ? `<button class="btn" id="del-mine" style="width:100%;margin-top:12px">Apagar este sítio</button>` : ""}
-  `;
-  $("#list").hidden = true; $("#detail").hidden = false; $("#grab").querySelector(".sheet-head").hidden = true;
-  refreshDetailMeta();
-  setSheet("mid");
-  if (fly) map.flyTo([p.lat, p.lng], Math.max(map.getZoom(), 16), {duration:.6});
-  else map.panTo([p.lat, p.lng]);
+    ${vids.length ? `<div class="vids">${vids.map(u => `<button class="vid" data-url="${esc(u)}"><span class="play">${ICON.play}</span><span><b>Ver vídeo</b><small>${esc(handle(u))}</small></span></button>`).join("")}</div>` : ""}
+    ${p.mine ? `<button class="link" id="del">Apagar este sítio</button>` : ""}`;
+  $("#list").hidden = true; $("#detail").hidden = false; $("#head").hidden = true; $("#scroll").scrollTop = 0;
+  refreshMeta(); setSheet("mid");
+  const off = {padding:{bottom: heights().mid, top: 90, left: 0, right: 0}};
+  fly ? map.flyTo({center:[p.lng,p.lat], zoom:Math.max(map.getZoom(),15.5), duration:700, ...off}) : map.easeTo({center:[p.lng,p.lat], ...off});
   $("#back").onclick = closeDetail;
-  $("#toggle-done").onclick = () => {
-    state.done.has(id) ? state.done.delete(id) : state.done.add(id);
-    store.set("done", [...state.done]); openDetail(id, false); renderList();
-  };
+  $("#done").onclick = () => { S.done.has(id) ? S.done.delete(id) : S.done.add(id); store.set("done",[...S.done]); openDetail(id,false); renderList(); };
   document.querySelectorAll(".vid").forEach(b => b.onclick = () => openVideo(b.dataset.url));
-  const del = $("#del-mine");
+  const del = $("#del");
   if (del) del.onclick = () => {
-    if (del.dataset.armed){ state.mine = state.mine.filter(x => x.id !== id); store.set("mine", state.mine); closeDetail(); drawMarkers(); renderList(); toast("Apagado"); }
-    else { del.dataset.armed = 1; del.textContent = "Toca outra vez para apagar"; }
+    if (!del.dataset.armed){ del.dataset.armed = 1; del.textContent = "Toca outra vez para apagar"; return; }
+    S.mine = S.mine.filter(x => x.id !== id); store.set("mine", S.mine); closeDetail(); renderList(); toast("Apagado");
   };
 }
-function refreshDetailMeta(){
-  const el = $("#detail-meta"); if (!el) return;
-  const p = allPlaces().find(x => x.id === state.selected);
-  if (!p || !state.me){ el.textContent = ""; return; }
-  const d = dist(state.me, [p.lat, p.lng]);
-  el.textContent = [fmtDist(d), walk(d)].filter(Boolean).join(" · ");
+function refreshMeta(){
+  const el = $("#meta"), p = S.selected && byId(S.selected); if (!el || !p) return;
+  if (!S.me){ el.textContent = ""; return; }
+  const d = dist(S.me, [p.lng,p.lat]); el.textContent = [fmt(d), walkMin(d)].filter(Boolean).join(" · ");
 }
 function closeDetail(){
-  state.selected = null; drawMarkers();
-  $("#detail").hidden = true; $("#list").hidden = false; $("#grab").querySelector(".sheet-head").hidden = false;
+  if (S.selected){ S.selected = null; drawMarkers(); }
+  $("#detail").hidden = true; $("#list").hidden = false; $("#head").hidden = false;
 }
-function handle(u){ const m = u.match(/tiktok\.com\/(@[^/]+)/); if (m) return m[1]; const i = u.match(/instagram\.com\/([^/]+\/[^/?]+)/); return i ? "Instagram" : u.replace(/^https?:\/\//, "").slice(0,40); }
+const handle = u => (u.match(/tiktok\.com\/(@[^/]+)/)||[])[1] || (/instagram/.test(u) ? "Instagram" : u.replace(/^https?:\/\//,"").slice(0,40));
 
 // ── Vídeo ──
 function openVideo(url){
-  const tt = url.match(/tiktok\.com\/@[^/]+\/(video|photo)\/(\d+)/);
-  const ig = url.match(/instagram\.com\/(?:reel|p|reels)\/([^/?#]+)/);
+  const tt = url.match(/tiktok\.com\/@[^/]+\/(video|photo)\/(\d+)/), ig = url.match(/instagram\.com\/(?:reel|p|reels)\/([^/?#]+)/);
   const src = tt ? (tt[1] === "video" ? `https://www.tiktok.com/player/v1/${tt[2]}?description=1&rel=0` : `https://www.tiktok.com/embed/v2/${tt[2]}`) : ig ? `https://www.instagram.com/p/${ig[1]}/embed` : null;
-  openModal(`
-    <div class="modal-head"><h4>${esc(handle(url))}</h4><button class="x" data-close aria-label="Fechar">×</button></div>
+  modal(`<div class="mhead"><h4>${esc(handle(url))}</h4><button class="x" data-close aria-label="Fechar">${ICON.x}</button></div>
     ${src ? `<div class="frame"><iframe src="${src}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe></div>` : ""}
-    <a class="btn primary" style="margin-top:12px" href="${esc(url)}" target="_blank" rel="noopener">Abrir no ${ig ? "Instagram" : "TikTok"}</a>`);
+    <a class="btn dark" style="margin-top:12px" href="${esc(url)}" target="_blank" rel="noopener">Abrir no ${ig ? "Instagram" : "TikTok"}</a>`);
 }
-function openModal(html){
-  $("#modal-box").innerHTML = html; $("#modal").hidden = false;
-  $("#modal").querySelectorAll("[data-close]").forEach(b => b.onclick = closeModal);
-}
-function closeModal(){ $("#modal").hidden = true; $("#modal-box").innerHTML = ""; }
+function modal(html){ $("#mbox").innerHTML = html; $("#modal").hidden = false; $("#modal").querySelectorAll("[data-close]").forEach(b => b.onclick = closeModal); }
+function closeModal(){ $("#modal").hidden = true; $("#mbox").innerHTML = ""; }
 $("#modal").addEventListener("click", e => { if (e.target.id === "modal") closeModal(); });
 
-// ── Adicionar sítio ──
+// ── Adicionar ──
 let draft = null;
 $("#add").onclick = () => openAdd();
-function openAdd(prefill){
-  draft = Object.assign({name:"", url:"", cat:"comer", what:"", lat:null, lng:null}, draft, prefill);
-  openModal(`
-    <div class="modal-head"><h4>Novo sítio</h4><button class="x" data-close aria-label="Fechar">×</button></div>
-    <form id="add-form">
-      <label for="f-name">Nome<input id="f-name" required value="${esc(draft.name)}" placeholder="ex.: Oink (sandes de porco)"></label>
-      <label for="f-url">Link do TikTok ou Reel (opcional)<input id="f-url" type="url" inputmode="url" value="${esc(draft.url)}" placeholder="https://www.tiktok.com/..."></label>
-      <div><label style="margin-bottom:6px">Categoria</label>
-        <div class="seg" id="f-cat">${Object.entries(CATS).map(([k,c]) => `<button type="button" data-cat="${k}" style="--c:${c.color}" aria-pressed="${draft.cat===k}">${c.label}</button>`).join("")}</div></div>
-      <label for="f-what">O que é / nota<textarea id="f-what" placeholder="O que queres provar ou ver lá">${esc(draft.what)}</textarea></label>
-      <div><label style="margin-bottom:6px">Localização</label>
-        <div class="seg">
-          <button type="button" id="f-here" ${state.me ? "" : "disabled"}>Onde estou agora</button>
-          <button type="button" id="f-pick">Escolher no mapa</button>
-        </div>
-        <p class="hint" id="f-loc">${draft.lat ? "Posição escolhida ✓" : state.me ? "Ainda sem posição." : "Ativa a localização ou escolhe no mapa."}</p>
-      </div>
-      <button class="btn primary" type="submit">Guardar</button>
+function openAdd(pre){
+  draft = Object.assign({name:"",url:"",cat:"comer",what:"",lat:null,lng:null}, draft, pre);
+  modal(`<div class="mhead"><h4>Novo sítio</h4><button class="x" data-close aria-label="Fechar">${ICON.x}</button></div>
+    <form id="f">
+      <label for="f-name">Nome<input id="f-name" required value="${esc(draft.name)}" placeholder="ex.: Oink"></label>
+      <label for="f-url">Link do TikTok ou Reel<input id="f-url" type="url" inputmode="url" value="${esc(draft.url)}" placeholder="Opcional"></label>
+      <label>Categoria<div class="seg" id="f-cat">${Object.entries(CATS).map(([k,c]) => `<button type="button" data-cat="${k}" aria-pressed="${draft.cat===k}">${c.label}</button>`).join("")}</div></label>
+      <label for="f-what">Nota<textarea id="f-what" placeholder="O que queres provar ou ver">${esc(draft.what)}</textarea></label>
+      <label>Localização<div class="seg"><button type="button" id="f-here" ${S.me?"":"disabled"}>Onde estou</button><button type="button" id="f-pick">Escolher no mapa</button></div>
+        <p class="hint" id="f-loc">${draft.lat != null ? "Posição escolhida ✓" : "Ainda sem posição"}</p></label>
+      <button class="btn dark" type="submit">Guardar</button>
     </form>`);
-  const keep = () => { draft.name = $("#f-name").value; draft.url = $("#f-url").value; draft.what = $("#f-what").value; };
+  const keep = () => { draft.name=$("#f-name").value; draft.url=$("#f-url").value; draft.what=$("#f-what").value; };
   $("#f-cat").onclick = e => { const b = e.target.closest("button"); if (!b) return; draft.cat = b.dataset.cat; $("#f-cat").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x===b)); };
-  $("#f-here").onclick = () => { if (!state.me) return; draft.lat = state.me[0]; draft.lng = state.me[1]; $("#f-loc").textContent = "Posição: onde estás agora ✓"; };
-  $("#f-pick").onclick = () => { keep(); closeModal(); startPick(); };
-  $("#add-form").onsubmit = e => {
+  $("#f-here").onclick = () => { if (!S.me) return; draft.lng=S.me[0]; draft.lat=S.me[1]; $("#f-loc").textContent = "Onde estás agora ✓"; };
+  $("#f-pick").onclick = () => { keep(); closeModal(); pick(); };
+  $("#f").onsubmit = e => {
     e.preventDefault(); keep();
     if (!draft.name.trim()) return;
-    if (draft.lat == null){ $("#f-loc").textContent = "Falta escolher a localização."; return; }
-    const id = "m" + Date.now();
-    const city = dist([draft.lat, draft.lng], CITY.edi.center) < dist([draft.lat, draft.lng], CITY.dub.center) ? "edi" : "dub";
-    state.mine.push({id, city, cat:draft.cat, name:draft.name.trim(), what:draft.what.trim(), tip:"", lat:draft.lat, lng:draft.lng, videos: draft.url.trim() ? [draft.url.trim()] : []});
-    store.set("mine", state.mine); draft = null; closeModal();
-    if (city !== state.city) setCity(city, false);
-    drawMarkers(); renderList(); openDetail(id, true); toast("Guardado");
+    if (draft.lat == null){ $("#f-loc").textContent = "Falta a localização"; return; }
+    const id = "m"+Date.now(), pt = [draft.lng, draft.lat];
+    const city = dist(pt, CITY.edi.center) < dist(pt, CITY.dub.center) ? "edi" : "dub";
+    S.mine.push({id, city, cat:draft.cat, name:draft.name.trim(), what:draft.what.trim(), tip:"", lat:draft.lat, lng:draft.lng, videos: draft.url.trim() ? [draft.url.trim()] : []});
+    store.set("mine", S.mine); draft = null; closeModal(); renderList(); openDetail(id, true); toast("Guardado");
   };
 }
-function startPick(){
+function pick(){
   document.body.classList.add("picking");
-  const ch = document.createElement("div"); ch.className = "crosshair";
-  ch.innerHTML = `<div class="pin" style="--c:var(--meu)"><b>+</b></div>`;
-  const bar = document.createElement("div"); bar.className = "pick-bar";
-  bar.innerHTML = `<p>Arrasta o mapa até ao sítio</p><button class="btn" id="pick-cancel">Cancelar</button><button class="btn primary" id="pick-ok">Usar aqui</button>`;
-  document.body.append(ch, bar);
-  const end = () => { ch.remove(); bar.remove(); document.body.classList.remove("picking"); };
-  $("#pick-cancel").onclick = () => { end(); openAdd(); };
-  $("#pick-ok").onclick = () => {
-    const pt = map.getCenter();
-    end(); openAdd({lat:pt.lat, lng:pt.lng});
-  };
+  const cr = document.createElement("div"); cr.className = "cross"; cr.innerHTML = `<div class="mk noimg" style="--c:#111">${ICON.fazer}</div>`;
+  const bar = document.createElement("div"); bar.className = "pickbar glass";
+  bar.innerHTML = `<p>Move o mapa até ao sítio</p><button class="btn" id="pc">Cancelar</button><button class="btn dark" id="po">Usar</button>`;
+  document.body.append(cr, bar);
+  const end = () => { cr.remove(); bar.remove(); document.body.classList.remove("picking"); };
+  $("#pc").onclick = () => { end(); openAdd(); };
+  $("#po").onclick = () => { const c = map.getCenter(); end(); openAdd({lat:c.lat, lng:c.lng}); };
 }
 
 // ── Cidade e filtros ──
-function setCity(c, move = true){
-  state.city = c; store.set("city", c);
+function setCity(c, move=true){
+  S.city = c; store.set("city", c);
   document.querySelectorAll(".cities button").forEach(b => b.setAttribute("aria-pressed", b.dataset.city === c));
-  closeDetail(); drawMarkers(); renderList();
-  if (move) map.setView(CITY[c].center, CITY[c].zoom);
+  S.selected = null; closeDetail(); drawMarkers(); renderList();
+  if (move) map.flyTo({center:CITY[c].center, zoom:CITY[c].zoom, duration:900, padding:{bottom:0,top:0,left:0,right:0}});
 }
 document.querySelectorAll(".cities button").forEach(b => b.onclick = () => setCity(b.dataset.city));
-$("#chips").innerHTML = Object.entries(CATS).map(([k,c]) => `<button class="chip" data-cat="${k}" style="--c:${c.color}" aria-pressed="false"><i></i>${c.label}</button>`).join("");
+$("#chips").innerHTML = Object.entries(CATS).map(([k,c]) => `<button class="chip glass" data-cat="${k}" style="--c:${c.color}" aria-pressed="false"><i></i>${c.label}</button>`).join("");
 $("#chips").onclick = e => {
   const b = e.target.closest(".chip"); if (!b) return;
-  state.filter = state.filter === b.dataset.cat ? null : b.dataset.cat;
-  document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x.dataset.cat === state.filter));
-  closeDetail(); drawMarkers(); renderList();
+  S.filter = S.filter === b.dataset.cat ? null : b.dataset.cat;
+  document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x.dataset.cat === S.filter));
+  S.selected = null; closeDetail(); drawMarkers(); renderList();
 };
 $("#locate").onclick = () => {
-  if (!state.me){ startGeo(); $("#locate").classList.add("on"); state.follow = true; return; }
-  state.follow = true; $("#locate").classList.add("on");
-  map.flyTo(state.me, Math.max(map.getZoom(), 16), {duration:.5});
+  S.follow = true; $("#locate").classList.add("on");
+  if (!S.me) return startGeo();
+  map.flyTo({center:S.me, zoom:Math.max(map.getZoom(),15.5), duration:600});
 };
-map.on("dragstart", () => { state.follow = false; $("#locate").classList.remove("on"); });
 
-// ── Folha deslizante (3 alturas) ──
+// ── Folha deslizante ──
 const sheet = $("#sheet");
-function heights(){ return {low:150, mid:Math.round(innerHeight*.45), high:Math.round(innerHeight*.86)}; }
-let sheetPos = "low";
-function setSheet(pos){
-  sheetPos = pos; const h = heights()[pos];
-  sheet.style.setProperty("--sheet-h", h + "px");
-  document.documentElement.style.setProperty("--sheet-peek", Math.min(h, heights().mid) + "px");
-}
+const heights = () => ({low:120, mid:Math.round(innerHeight*.46), high:Math.round(innerHeight*.88)});
+let pos = "low";
+function setSheet(p){ pos = p; const h = heights()[p]; sheet.style.setProperty("--h", h+"px"); document.documentElement.style.setProperty("--peek", Math.min(h, heights().mid)+"px"); }
 (() => {
-  let y0 = null, h0 = 0, moved = false;
-  const grab = $("#grab");
-  grab.addEventListener("pointerdown", e => { y0 = e.clientY; h0 = sheet.getBoundingClientRect().height; moved = false; sheet.classList.add("drag"); grab.setPointerCapture(e.pointerId); });
-  grab.addEventListener("pointermove", e => { if (y0 == null) return; const dy = y0 - e.clientY; if (Math.abs(dy) > 4) moved = true; sheet.style.setProperty("--sheet-h", Math.max(100, Math.min(innerHeight*.92, h0 + dy)) + "px"); });
-  const up = e => {
-    if (y0 == null) return; sheet.classList.remove("drag");
-    const h = sheet.getBoundingClientRect().height, H = heights();
-    if (!moved){ setSheet(sheetPos === "low" ? "mid" : sheetPos === "mid" ? "high" : "low"); }
-    else { const best = Object.entries(H).sort((a,b) => Math.abs(a[1]-h) - Math.abs(b[1]-h))[0][0]; setSheet(best); }
-    y0 = null;
-  };
-  grab.addEventListener("pointerup", up); grab.addEventListener("pointercancel", up);
+  let y0=null, h0=0, moved=false; const g = $("#grab");
+  g.addEventListener("pointerdown", e => { y0=e.clientY; h0=sheet.getBoundingClientRect().height; moved=false; sheet.classList.add("drag"); g.setPointerCapture(e.pointerId); });
+  g.addEventListener("pointermove", e => { if (y0==null) return; const dy=y0-e.clientY; if (Math.abs(dy)>4) moved=true; sheet.style.setProperty("--h", Math.max(90, Math.min(innerHeight*.94, h0+dy))+"px"); });
+  const up = () => { if (y0==null) return; sheet.classList.remove("drag"); const h=sheet.getBoundingClientRect().height, H=heights();
+    if (!moved) setSheet(pos==="low"?"mid":pos==="mid"?"high":"low"); else setSheet(Object.entries(H).sort((a,b)=>Math.abs(a[1]-h)-Math.abs(b[1]-h))[0][0]); y0=null; };
+  g.addEventListener("pointerup", up); g.addEventListener("pointercancel", up);
 })();
-addEventListener("resize", () => setSheet(sheetPos));
-
-function toast(msg){
-  const t = document.createElement("div"); t.className = "toast"; t.textContent = msg;
-  document.body.appendChild(t); setTimeout(() => t.remove(), 2600);
-}
+addEventListener("resize", () => setSheet(pos));
+function toast(m){ const t=document.createElement("div"); t.className="toast"; t.textContent=m; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
 
 // ── Arranque ──
-setCity(state.city, false);
-setSheet("low");
+bellUI(); setSheet("low"); renderList();
+map.on("load", () => {
+  drawMarkers();
+  const h = decodeURIComponent(location.hash.slice(1)); if (h && byId(h)) openDetail(h, true);
+});
 startGeo();
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
 </html>

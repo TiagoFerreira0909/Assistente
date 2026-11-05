@@ -185,3 +185,4 @@ const PLACES = [
     tip: "Excursão de um dia desde Dublin.",
     lat: 52.9715, lng: -9.4309, videos: ["tebusco"] },
 ];
+const THUMBS = new Set(["1820", "boeuf", "calton", "castle-dub", "castle", "christchurch", "circus", "dean", "drury", "freddys", "gardens", "guinness", "hapenny", "howth", "kilmainham", "ladystair", "lannan", "milkman", "mitre", "moher", "mongolian", "newssteps", "papis", "phoenix", "scran", "stephens", "stpatricks", "tartan", "templebar", "toppings", "trinity", "uplands", "victoria"]);
