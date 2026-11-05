@@ -188,7 +188,7 @@ textarea{min-height:72px;resize:vertical}
 <div class="modal" id="modal" hidden><div class="mbox" id="mbox"></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
-<script src="places.js"></script>
+<script src="places.js?v=3"></script>
 <script>
 const ICON = {
   comer:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3v8a2 2 0 0 0 4 0V3M9 11v10M17 3c-1.7 1-3 3-3 6s1.3 3 3 3v9"/></svg>',
@@ -222,7 +222,7 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const all = () => PLACES.concat(S.mine.map(p => ({...p, mine:true})));
 const byId = id => all().find(p => p.id === id);
-const img = p => THUMBS.has(p.id) ? `thumbs/${encodeURIComponent(p.id)}.jpg` : null;
+const img = p => (typeof THUMBS !== "undefined" && THUMBS.has(p.id)) ? `thumbs/${encodeURIComponent(p.id)}.jpg` : null;
 function thumbHTML(p){
   const c = CATS[p.cat] || CATS.ver, u = img(p);
   return u ? `<span class="th" style="--c:${c.color};background-image:url('${u}')"></span>`
