@@ -70,7 +70,6 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;paddin
 .mk.small::after{width:9px;height:9px}
 .mk.done{filter:grayscale(1);opacity:.55}
 .mk.sel{--s:58px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
-.maplibregl-marker:has(.mk.sel){z-index:3}
 .me{width:16px;height:16px;border-radius:50%;background:var(--me);border:3px solid #fff;box-shadow:0 0 0 7px rgba(47,111,237,.18),0 1px 4px rgba(0,0,0,.3)}
 
 /* Folha */
@@ -188,7 +187,7 @@ textarea{min-height:72px;resize:vertical}
 <div class="modal" id="modal" hidden><div class="mbox" id="mbox"></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
-<script src="places.js?v=3"></script>
+<script src="places.js?v=4"></script>
 <script>
 const ICON = {
   comer:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3v8a2 2 0 0 0 4 0V3M9 11v10M17 3c-1.7 1-3 3-3 6s1.3 3 3 3v9"/></svg>',
@@ -230,9 +229,8 @@ function thumbHTML(p){
 }
 
 // ── Mapa ──
-const dark = matchMedia("(prefers-color-scheme: dark)").matches;
 const map = new maplibregl.Map({
-  container:"map", style:`https://tiles.openfreemap.org/styles/${dark ? "dark" : "positron"}`,
+  container:"map", style:"https://tiles.openfreemap.org/styles/positron",
   center:CITY[S.city].center, zoom:CITY[S.city].zoom, attributionControl:false, pitchWithRotate:false, dragRotate:false,
 });
 map.addControl(new maplibregl.AttributionControl({compact:true}), "bottom-right");
@@ -249,11 +247,13 @@ function drawMarkers(){
     el.className = ["mk", u ? "" : "noimg", small ? "small" : "", S.done.has(p.id) ? "done" : "", S.selected === p.id ? "sel" : ""].join(" ");
     el.style.setProperty("--c", c.color);
     if (u) el.style.backgroundImage = `url('${u}')`; else el.innerHTML = ICON[p.cat] || ICON.ver;
-    el.addEventListener("click", e => { e.stopPropagation(); openDetail(p.id, false); });
-    markers[p.id] = new maplibregl.Marker({element:el}).setLngLat([p.lng,p.lat]).addTo(map);
+    const wrap = document.createElement("div"); wrap.appendChild(el);
+    if (S.selected === p.id) wrap.style.zIndex = 3;
+    wrap.addEventListener("click", e => { e.stopPropagation(); openDetail(p.id, false); });
+    markers[p.id] = new maplibregl.Marker({element:wrap}).setLngLat([p.lng,p.lat]).addTo(map);
   }
 }
-map.on("zoom", () => { const s = map.getZoom() < SMALL_Z; Object.values(markers).forEach(m => m.getElement().classList.toggle("small", s)); });
+map.on("zoom", () => { const s = map.getZoom() < SMALL_Z; Object.values(markers).forEach(m => m.getElement().firstChild.classList.toggle("small", s)); });
 map.on("dragstart", () => { S.follow = false; $("#locate").classList.remove("on"); });
 
 // ── Localização ──
