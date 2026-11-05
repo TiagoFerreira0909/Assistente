@@ -129,6 +129,7 @@ textarea{min-height:70px;resize:vertical}
 .pick-bar{position:fixed;left:12px;right:12px;bottom:calc(var(--safe-b) + 16px);z-index:700;background:var(--surface);border-radius:14px;box-shadow:var(--shadow);padding:12px;display:flex;align-items:center;gap:10px}
 .pick-bar p{margin:0;flex:1;font-weight:600}
 .crosshair{position:fixed;left:50%;top:50%;z-index:650;width:30px;height:30px;margin:-36px 0 0 -15px;pointer-events:none}
+@media (prefers-color-scheme: dark){.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9)}}
 @media (prefers-reduced-motion: reduce){.sheet{transition:none}}
 </style>
 </head>
@@ -192,11 +193,10 @@ function allPlaces(){ return PLACES.concat(state.mine.map(p => ({...p, mine:true
 function cssVar(v){ return getComputedStyle(document.documentElement).getPropertyValue(v.slice(4,-1)).trim(); }
 
 // ── Mapa ──
-const dark = matchMedia("(prefers-color-scheme: dark)").matches;
 const map = L.map("map", {zoomControl:false, attributionControl:true}).setView(CITY[state.city].center, CITY[state.city].zoom);
-L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark ? "dark_all" : "rastertiles/voyager"}/{z}/{x}/{y}{r}.png`, {
-  maxZoom: 20, subdomains: "abcd",
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 }).addTo(map);
 
 const layer = L.layerGroup().addTo(map);
