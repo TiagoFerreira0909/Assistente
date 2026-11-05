@@ -79,7 +79,7 @@ const PLACES = [
     tip: "Entrada grátis. Alternativa a Calton Hill sem multidões.",
     lat: 55.9469, lng: -3.1893, videos: ["secretos"] },
   { id: "victoria", city: "edi", cat: "ver", name: "Victoria Street",
-    what: "Rua curva e colorida que terá inspirado a Diagon-Al do Harry Potter. Cheia de lojas.",
+    what: "Rua curva e colorida que terá inspirado o Beco Diagonal do Harry Potter. Cheia de lojas.",
     tip: "", lat: 55.9486, lng: -3.1935, videos: ["mariaj", "jess", "mariaescocia"] },
   { id: "greyfriars", city: "edi", cat: "ver", name: "Greyfriars Kirkyard",
     what: "Cemitério cujas lápides deram nomes a personagens do Harry Potter.",
