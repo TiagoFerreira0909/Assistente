@@ -19,6 +19,7 @@ const ICON = {
   camera:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
   heart:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-9.6-9.1C.9 8.6 2.9 4.5 6.8 4.5c2.1 0 3.6 1.2 5.2 3 1.6-1.8 3.1-3 5.2-3 3.9 0 5.9 4.1 4.4 7.4C19.5 16.4 12 21 12 21z"/></svg>',
   grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="14" height="14" rx="2.5"/><path d="M7 3h11.5A2.5 2.5 0 0 1 21 5.5V17"/><path d="m3 16 4-4 4 4 2-2 4 4"/></svg>',
+  download:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
   sun:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 18a5 5 0 0 0-10 0M12 2v7M4.2 10.2l1.4 1.4M1 18h2M21 18h2M18.4 11.6l1.4-1.4M23 22H1M16 5l-4 4-4-4"/></svg>',
 };
 const CATS = {comer:{label:"Comer",color:"var(--comer)"}, beber:{label:"Beber",color:"var(--beber)"}, ver:{label:"Ver",color:"var(--ver)"}, fazer:{label:"Fazer",color:"var(--fazer)"}};
@@ -411,6 +412,7 @@ function openPost(p){
   modal(`<div class="mhead"><h4>${esc(place?.name || "")}</h4><button class="x" data-close aria-label="Fechar">${ICON.x}</button></div>
     ${postCard(p, place, df, false)}
     ${mine ? `<button class="link" id="ph-del">Apagar esta foto</button>` : ""}`);
+  shownPosts = [p]; preparePhotos(shownPosts);
   wireCards();
   const del = $("#ph-del");
   if (del) del.onclick = async () => {
@@ -425,10 +427,42 @@ function postCard(p, place, df, showPlace = true){
   return `<article class="post">
     <header><span class="av">${esc(who[0].toUpperCase())}</span><span><b>${esc(who)}</b>${showPlace && place ? ` <button class="plc" data-id="${esc(place.id)}">em ${esc(place.name)}</button>` : ""}<small>${df.format(new Date(p.at))}${p.pending ? (S.code ? " · a enviar…" : " · só neste telemóvel") : ""}</small></span></header>
     <img src="${p.src}" alt="" loading="lazy">
-    <footer>${p.pending ? "" : `<button class="like ${iLike(p.uid) ? "on" : ""}" data-u="${esc(p.uid)}">${ICON.heart}<span>${likesOf(p.uid) || ""}</span></button>`}${p.caption ? `<p>${esc(p.caption)}</p>` : ""}</footer>
+    <footer>${p.pending ? "" : `<button class="like ${iLike(p.uid) ? "on" : ""}" data-u="${esc(p.uid)}">${ICON.heart}<span>${likesOf(p.uid) || ""}</span></button>`}${p.caption ? `<p>${esc(p.caption)}</p>` : "<p></p>"}<button class="dl" data-u="${esc(p.uid)}" aria-label="Guardar foto">${ICON.download}</button></footer>
   </article>`;
 }
+// ── Guardar fotos no telemóvel ──
+// As imagens são preparadas antes do toque, porque o iPhone só abre a partilha
+// se for chamada logo a seguir ao toque.
+const photoBlobs = new Map();
+let shownPosts = [];
+async function preparePhotos(posts){
+  await Promise.all(posts.map(async p => {
+    if (photoBlobs.has(p.uid)) return;
+    try{ const r = await fetch(p.src); if (r.ok) photoBlobs.set(p.uid, await r.blob()); }catch(e){}
+  }));
+}
+function fileFor(p, i){
+  const b = photoBlobs.get(p.uid); if (!b) return null;
+  const slug = (byId(p.place)?.name || "viagem").normalize("NFD").replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+  return new File([b], `${slug}-${new Date(p.at).toISOString().slice(0,10)}-${i+1}.jpg`, {type:"image/jpeg"});
+}
+async function savePhotos(posts){
+  const files = posts.map(fileFor).filter(Boolean);
+  if (!files.length) return toast("As fotos ainda estão a carregar");
+  if (navigator.canShare && navigator.canShare({files})){
+    try{ await navigator.share({files}); }catch(e){ if (e.name !== "AbortError") toast("Não consegui abrir a partilha"); }
+    return;
+  }
+  for (const f of files){
+    const a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = f.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    await new Promise(r => setTimeout(r, 250));
+  }
+  toast(files.length === 1 ? "Foto transferida" : `${files.length} fotos transferidas`);
+}
 function wireCards(){
+  $("#mbox").querySelectorAll(".dl").forEach(b => b.onclick = () => { const p = shownPosts.find(x => x.uid === b.dataset.u); if (p) savePhotos([p]); });
   $("#mbox").querySelectorAll(".like").forEach(b => b.onclick = () => { toggleLike(b.dataset.u); b.classList.toggle("on", iLike(b.dataset.u)); b.querySelector("span").textContent = likesOf(b.dataset.u) || ""; });
   $("#mbox").querySelectorAll(".plc").forEach(b => b.onclick = () => { closeModal(); openDetail(b.dataset.id, true); });
 }
@@ -438,9 +472,21 @@ async function openFeed(){
   const df = new Intl.DateTimeFormat("pt-PT", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
   modal(`<div class="mhead"><h4>Mural</h4><button class="x" data-close aria-label="Fechar">${ICON.x}</button></div>
     ${S.code ? "" : `<p class="hint" style="margin-bottom:12px">Só tu vês estas fotos. Para as partilhar, liga a partilha no menu ⋯.</p>`}
+    ${posts.length ? `<button class="btn" id="dl-all" style="width:100%;margin-bottom:14px">${ICON.download}<span>A preparar ${posts.length} ${posts.length === 1 ? "foto" : "fotos"}…</span></button>`: ""}
     ${posts.length ? `<div class="feed">${posts.map(p => postCard(p, byId(p.place), df)).join("")}</div>`
       : `<p class="hint" style="padding:8px 0 20px">Ainda não há fotos. Abre um sítio e toca em <b>Foto</b> para publicar a primeira.</p>`}`);
+  shownPosts = posts;
   wireCards();
+  const all = $("#dl-all");
+  if (all){
+    all.disabled = true;
+    preparePhotos(posts).then(() => {
+      if (!document.body.contains(all)) return;
+      const n = posts.filter(p => photoBlobs.has(p.uid)).length;
+      all.disabled = false; all.querySelector("span").textContent = `Guardar todas (${n})`;
+      all.onclick = () => savePhotos(posts);
+    });
+  }
 }
 // Envia as fotos deste telemóvel que ainda não estão na nuvem
 async function uploadPending(){
@@ -573,7 +619,7 @@ async function saveOffline(onProgress){
   if (typeof style.sprite === "string") ["", "@2x"].forEach(s => [".json",".png"].forEach(ext => list.push(style.sprite + s + ext)));
   const base = location.href.replace(/[#?].*$/, "").replace(/[^/]*$/, "");
   [...THUMBS].forEach(id => list.push(base + "thumbs/" + encodeURIComponent(id) + ".jpg"));
-  ["", "index.html", "app.js?v=12", "places.js?v=12", "fun.js?v=12", "manifest.webmanifest", "icon-192.png"].forEach(f => list.push(base + f));
+  ["", "index.html", "app.js?v=13", "places.js?v=13", "fun.js?v=13", "manifest.webmanifest", "icon-192.png"].forEach(f => list.push(base + f));
   let done = 0, bytes = 0, fails = 0;
   const queue = [...new Set(list)];
   const total = queue.length;

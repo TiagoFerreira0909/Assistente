@@ -278,3 +278,51 @@ PLACES.push(
 );
 // Pubs que já estavam na lista também entram no passaporte
 ["mitre", "templebar"].forEach(id => { const p = PLACES.find(x => x.id === id); if (p) p.pub = true; });
+
+// ───────── Principais pontos turísticos ─────────
+PLACES.push(
+  { id:"royalmile", city:"edi", cat:"ver", name:"Royal Mile", what:"A rua principal da Old Town, do castelo ao palácio de Holyrood, cheia de closes (vielas) para espreitar.", tip:"", lat:55.9503, lng:-3.188, videos:[] },
+  { id:"stgiles", city:"edi", cat:"ver", name:"St Giles' Cathedral", what:"A catedral da Royal Mile, com a Thistle Chapel.", tip:"Entrada gratuita (com donativo sugerido).", lat:55.94948, lng:-3.19085, videos:[] },
+  { id:"holyrood", city:"edi", cat:"fazer", name:"Palace of Holyroodhouse", what:"A residência oficial do rei na Escócia, com as ruínas da abadia nas traseiras.", tip:"No inverno fecha às terças e quartas e pode fechar mais cedo. Confirma no site.", lat:55.95269, lng:-3.17161, videos:[] },
+  { id:"arthurs", city:"edi", cat:"fazer", name:"Arthur's Seat", what:"Vulcão extinto no meio da cidade, com a melhor vista de Edimburgo. Subida de 30–45 min.", tip:"Leva calçado com aderência: com chuva fica escorregadio. Na descida, passa no Sheep Heid Inn.", lat:55.94407, lng:-3.1616, videos:[] },
+  { id:"camera", city:"edi", cat:"fazer", name:"Camera Obscura & World of Illusions", what:"Cinco andares de ilusões de ótica e a câmara obscura no topo, ao lado do castelo.", tip:"", lat:55.94886, lng:-3.19598, videos:[] },
+  { id:"marykings", city:"edi", cat:"fazer", name:"The Real Mary King's Close", what:"Visita guiada às ruas soterradas do século XVII por baixo da Royal Mile.", tip:"Só com visita guiada. Reserva antes.", lat:55.94996, lng:-3.19045, videos:[] },
+  { id:"whiskyexp", city:"edi", cat:"fazer", name:"The Scotch Whisky Experience", what:"Visita com prova e uma das maiores coleções de whisky do mundo, junto ao castelo.", tip:"", lat:55.94874, lng:-3.19587, videos:[] },
+  { id:"grassmarket", city:"edi", cat:"ver", name:"Grassmarket", what:"Praça antiga por baixo do castelo, cheia de pubs. Era aqui que se faziam os enforcamentos públicos.", tip:"", lat:55.94748, lng:-3.19625, videos:[] },
+  { id:"bobby", city:"edi", cat:"ver", name:"Greyfriars Bobby", what:"Estátua do cão que, diz a história, guardou a campa do dono durante 14 anos.", tip:"Fica à entrada do Greyfriars Kirkyard.", lat:55.94692, lng:-3.1913, videos:[] },
+  { id:"vaults", city:"edi", cat:"fazer", name:"Edinburgh Vaults", what:"Câmaras subterrâneas por baixo da South Bridge, com visitas guiadas de fantasmas à noite.", tip:"Só com visita guiada.", lat:55.94915, lng:-3.18758, videos:[] },
+  { id:"gallery", city:"edi", cat:"fazer", name:"Scottish National Gallery", what:"Museu de pintura gratuito no Mound, entre a Old e a New Town.", tip:"", lat:55.95088, lng:-3.19561, videos:[] },
+  { id:"botanic", city:"edi", cat:"ver", name:"Royal Botanic Garden", what:"Jardim botânico enorme, com vista para o castelo.", tip:"Entrada gratuita. Fica ao lado de Stockbridge.", lat:55.96529, lng:-3.20886, videos:[] },
+  { id:"parliament", city:"edi", cat:"ver", name:"Scottish Parliament", what:"Edifício contemporâneo em frente ao palácio de Holyrood. A entrada é gratuita.", tip:"", lat:55.95247, lng:-3.17566, videos:[] },
+  { id:"britannia", city:"edi", cat:"fazer", name:"Royal Yacht Britannia", what:"O antigo iate da família real britânica, atracado em Leith.", tip:"Fica fora do centro: vai de elétrico ou autocarro até Leith.", lat:55.98215, lng:-3.17731, videos:[] },
+
+  { id:"grafton", city:"dub", cat:"ver", name:"Grafton Street", what:"A rua comercial principal de Dublin, com músicos de rua.", tip:"", lat:53.34209, lng:-6.25989, videos:[] },
+  { id:"spire", city:"dub", cat:"ver", name:"O'Connell Street e Spire", what:"A avenida principal de Dublin, com a agulha de aço de 120 m.", tip:"", lat:53.3498, lng:-6.26025, videos:[] },
+  { id:"gpo", city:"dub", cat:"fazer", name:"GPO Witness History", what:"Museu da Revolta da Páscoa de 1916, nos correios onde ela começou.", tip:"", lat:53.34928, lng:-6.26105, videos:[] },
+  { id:"jameson", city:"dub", cat:"fazer", name:"Jameson Distillery Bow St.", what:"Visita à antiga destilaria da Jameson, com prova de whiskey.", tip:"Convém reservar.", lat:53.34845, lng:-6.27718, videos:[] },
+  { id:"teeling", city:"dub", cat:"fazer", name:"Teeling Whiskey Distillery", what:"Destilaria em funcionamento no bairro de The Liberties, com visita e prova.", tip:"", lat:53.33763, lng:-6.2771, videos:[] },
+  { id:"epic", city:"dub", cat:"fazer", name:"EPIC The Irish Emigration Museum", what:"Museu interativo sobre os irlandeses que emigraram pelo mundo.", tip:"", lat:53.34827, lng:-6.24798, videos:[] },
+  { id:"natmuseum", city:"dub", cat:"fazer", name:"National Museum of Ireland – Archaeology", what:"Museu gratuito com os corpos preservados nas turfeiras (bog bodies) e o ouro celta.", tip:"", lat:53.34024, lng:-6.25496, videos:[] },
+  { id:"natgallery", city:"dub", cat:"fazer", name:"National Gallery of Ireland", what:"Museu de pintura gratuito em Merrion Square.", tip:"", lat:53.34112, lng:-6.25267, videos:[] },
+  { id:"littlemuseum", city:"dub", cat:"fazer", name:"Little Museum of Dublin", what:"A história de Dublin no século XX numa casa georgiana, com visitas guiadas divertidas.", tip:"", lat:53.33954, lng:-6.2584, videos:[] },
+  { id:"chester", city:"dub", cat:"fazer", name:"Chester Beatty", what:"Biblioteca-museu gratuita com manuscritos e livros raros de todo o mundo, nos jardins do Dublin Castle.", tip:"", lat:53.3422, lng:-6.26745, videos:[] },
+  { id:"marsh", city:"dub", cat:"ver", name:"Marsh's Library", what:"Biblioteca de 1707, a mais antiga biblioteca pública da Irlanda, ao lado de St Patrick's.", tip:"", lat:53.3392, lng:-6.27058, videos:[] },
+  { id:"moli", city:"dub", cat:"fazer", name:"MoLI – Museum of Literature Ireland", what:"Museu da literatura irlandesa (Joyce, Wilde, Beckett) com um jardim escondido.", tip:"", lat:53.33679, lng:-6.26042, videos:[] },
+  { id:"iveagh", city:"dub", cat:"ver", name:"Iveagh Gardens", what:"Jardim escondido com uma cascata, mais calmo que o St Stephen's Green.", tip:"", lat:53.33503, lng:-6.26102, videos:[] },
+  { id:"glasnevin", city:"dub", cat:"fazer", name:"Glasnevin Cemetery", what:"Cemitério histórico onde estão muitas figuras da independência, com visitas guiadas.", tip:"Fica a norte do centro.", lat:53.37208, lng:-6.27858, videos:[] },
+);
+Object.assign(HOURS, {
+  stgiles: ["13:00-17:00", "10:00-18:00", "10:00-18:00", "10:00-18:00", "10:00-17:00", "10:00-18:00", "09:00-17:00"],
+  holyrood: ["09:30-18:00", "09:30-18:00", "", "", "09:30-18:00", "09:30-18:00", "09:30-18:00"],
+  camera: ["09:30-20:00", "09:30-19:30", "09:30-19:30", "09:30-19:30", "09:30-19:30", "08:30-21:30", "08:30-21:30"],
+  botanic: _W("10:00-16:00"),
+  gallery: _W("10:00-17:00"),
+  parliament: ["", "10:00-17:00", "10:00-17:00", "10:00-17:00", "10:00-17:00", "10:00-17:00", "10:00-17:00"],
+  gpo: ["", "10:00-17:00", "10:00-17:00", "10:00-17:00", "10:00-17:00", "10:00-17:00", "10:00-17:00"],
+  teeling: ["11:00-18:00", "11:00-18:00", "11:00-18:00", "11:00-18:00", "11:00-18:00", "11:00-18:00", "11:00-19:00"],
+  natmuseum: ["13:00-17:00", "13:00-17:00", "10:00-17:00", "10:00-17:00", "10:00-17:00", "10:00-17:00", "10:00-17:00"],
+  littlemuseum: _W("09:30-17:00"),
+  iveagh: ["10:00-19:00", "08:00-19:00", "08:00-19:00", "08:00-19:00", "08:00-19:00", "08:00-19:00", "08:00-19:00"],
+  glasnevin: _W("08:00-18:00"),
+  marsh: ["", "", "09:30-17:00", "09:30-17:00", "09:30-17:00", "09:30-17:00", "10:00-17:00"],
+});
