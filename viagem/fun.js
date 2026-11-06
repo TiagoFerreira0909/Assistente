@@ -42,8 +42,21 @@ startShare = async function(code){
   if (S.bingo[S.device]) S.outbox["bingo:"+S.device] = S.bingo[S.device];
   for (const [c, ll] of Object.entries(S.home)) S.outbox["home:"+c] = ll;
   store.set("outbox", S.outbox);
-  return _startShare(code);
+  const r = await _startShare(code);
+  if (!S.name) askName();
+  return r;
 };
+function askName(){
+  modal(`<div class="mhead"><h4>Como te chamas?</h4><button class="x" data-close aria-label="Fechar">${ICON.x}</button></div>
+    <form id="nf"><label for="nf-name">O teu nome aparece no mural, no bingo e nas notas da Guinness<input id="nf-name" required autocomplete="given-name" placeholder="ex.: Tiago"></label>
+    <button class="btn dark" type="submit">Guardar</button></form>`);
+  $("#nf").onsubmit = e => {
+    e.preventDefault(); S.name = $("#nf-name").value.trim(); if (!S.name) return;
+    store.set("name", S.name);
+    if (S.bingo[S.device]){ S.bingo[S.device].name = S.name; store.set("bingo", S.bingo); change("bingo:"+S.device, S.bingo[S.device]); }
+    closeModal(); toast("Olá, " + S.name);
+  };
+}
 
 // ───────── Passaporte dos pubs ─────────
 const BADGES = [

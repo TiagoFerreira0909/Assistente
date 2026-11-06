@@ -1,5 +1,5 @@
-const V = "viagem-v8";
-const SHELL = ["./", "index.html", "app.js?v=8", "places.js?v=8", "fun.js?v=8", "manifest.webmanifest", "icon-192.png",
+const V = "viagem-v9";
+const SHELL = ["./", "index.html", "app.js?v=9", "places.js?v=9", "fun.js?v=9", "manifest.webmanifest", "icon-192.png",
   "https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.css",
   "https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });

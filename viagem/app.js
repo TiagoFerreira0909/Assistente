@@ -573,7 +573,7 @@ async function saveOffline(onProgress){
   if (typeof style.sprite === "string") ["", "@2x"].forEach(s => [".json",".png"].forEach(ext => list.push(style.sprite + s + ext)));
   const base = location.href.replace(/[#?].*$/, "").replace(/[^/]*$/, "");
   [...THUMBS].forEach(id => list.push(base + "thumbs/" + encodeURIComponent(id) + ".jpg"));
-  ["", "index.html", "app.js?v=8", "places.js?v=8", "fun.js?v=8", "manifest.webmanifest", "icon-192.png"].forEach(f => list.push(base + f));
+  ["", "index.html", "app.js?v=9", "places.js?v=9", "fun.js?v=9", "manifest.webmanifest", "icon-192.png"].forEach(f => list.push(base + f));
   let done = 0, bytes = 0, fails = 0;
   const queue = [...new Set(list)];
   const total = queue.length;
@@ -624,7 +624,7 @@ async function openShare(){
     modal(`<div class="mhead"><h4>Partilhar a viagem</h4><button class="x" data-close aria-label="Fechar">${ICON.x}</button></div>
       <p class="hint" style="margin-bottom:14px">Cria um link e envia-o a quem vai contigo. Quem o abrir fica a ver o mesmo que tu: sítios já vistos, notas, sítios acrescentados e as fotos do mural.</p>
       <button class="btn dark" id="sh-new" style="width:100%">Criar link</button>`);
-    $("#sh-new").onclick = async () => { $("#sh-new").textContent = "A criar…"; await startShare(); openShare(); };
+    $("#sh-new").onclick = async () => { $("#sh-new").textContent = "A criar…"; await startShare(); if (S.name) openShare(); };
     return;
   }
   const link = shareLink();
