@@ -49,7 +49,7 @@ startShare = async function(code){
 };
 function askName(){
   modal(`<div class="mhead"><h4>Como te chamas?</h4><button class="x" data-close aria-label="Fechar">${ICON.x}</button></div>
-    <form id="nf"><label for="nf-name">O teu nome aparece no mural, no bingo e nas notas da Guinness<input id="nf-name" required autocomplete="given-name" placeholder="ex.: Tiago"></label>
+    <form id="nf"><label for="nf-name">O teu nome aparece no mural, no bingo e nas notas da Guinness<input id="nf-name" required maxlength="30" autocomplete="given-name" placeholder="ex.: Tiago"></label>
     <button class="btn dark" type="submit">Guardar</button></form>`);
   $("#nf").onsubmit = e => {
     e.preventDefault(); S.name = $("#nf-name").value.trim(); if (!S.name) return;
@@ -147,10 +147,10 @@ function whiskyForm(){
   const w = {score:0, smoke:1};
   modal(`<div class="mhead"><h4>Nova prova</h4><button class="x" data-close aria-label="Fechar">${ICON.x}</button></div>
     <form id="wf">
-      <label for="wf-name">Whisky<input id="wf-name" required placeholder="ex.: Lagavulin 16"></label>
+      <label for="wf-name">Whisky<input id="wf-name" required maxlength="80" placeholder="ex.: Lagavulin 16"></label>
       <label>Nota<span class="rstars big" id="wf-score">${[1,2,3,4,5].map(n => `<button type="button" data-n="${n}" aria-label="${n} estrelas">${ICON.star}</button>`).join("")}</span></label>
       <label>Fumado<div class="seg" id="wf-smoke">${SMOKE.map((s,i) => `<button type="button" data-i="${i}" aria-pressed="${i===1}">${s}</button>`).join("")}</div></label>
-      <label for="wf-note">Como era<textarea id="wf-note" placeholder="Doce, salgado, a fumo de turfa…"></textarea></label>
+      <label for="wf-note">Como era<textarea id="wf-note" maxlength="500" placeholder="Doce, salgado, a fumo de turfa…"></textarea></label>
       ${near && dist(S.me,[near.lng,near.lat]) < 200 ? `<label class="chk"><input type="checkbox" id="wf-here" checked> Provado em ${esc(near.name)}</label>` : ""}
       <button class="btn dark" type="submit">Guardar</button>
     </form>`);
@@ -244,7 +244,12 @@ function setHome(){
       ${h ? `<a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${h[1]},${h[0]}&travelmode=walking">${ICON.walk}Ir para lá</a>` : ""}
     </div>
     ${h ? `<button class="link" id="h-del">Apagar alojamento</button>` : ""}`);
-  const save = ll => { S.home[S.city] = ll; store.set("home", S.home); change("home:"+S.city, ll); drawHome(); toast("Alojamento guardado"); };
+  // grava na cidade mais próxima do ponto (não na que está escolhida no ecrã)
+  const save = ll => {
+    const c = dist(ll, CITY.edi.center) < dist(ll, CITY.dub.center) ? "edi" : "dub";
+    S.home[c] = ll; store.set("home", S.home); change("home:"+c, ll); drawHome();
+    toast(`Alojamento em ${CITY[c].name} guardado`);
+  };
   $("#h-here").onclick = () => { if (S.me){ save(S.me); closeModal(); } };
   $("#h-pick").onclick = () => { closeModal(); pickPoint("Move o mapa até ao alojamento", ll => save(ll)); };
   const del = $("#h-del");

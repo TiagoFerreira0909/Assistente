@@ -106,6 +106,7 @@ async function initMap(){
   map.addControl(new maplibregl.AttributionControl({compact:true, customAttribution:'<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'}), "bottom-right");
   map.touchZoomRotate.disableRotation();
   map.on("zoom", () => { const s = map.getZoom() < SMALL_Z; Object.values(markers).forEach(m => m.getElement().firstChild.classList.toggle("small", s)); });
+  map.on("zoomend", spreadMarkers);
   map.on("dragstart", () => { S.follow = false; $("#locate").classList.remove("on"); });
   map.on("load", () => { drawMarkers(); routeHash(); });
 }
@@ -124,6 +125,29 @@ function drawMarkers(){
     if (S.selected === p.id) wrap.style.zIndex = 3;
     wrap.addEventListener("click", e => { e.stopPropagation(); openDetail(p.id, false); });
     markers[p.id] = new maplibregl.Marker({element:wrap}).setLngLat([p.lng,p.lat]).addTo(map);
+  }
+  spreadMarkers();
+}
+// Pinos muito juntos (ex.: Camera Obscura e Tartan Mill) ficam em roda à volta do ponto,
+// para nenhum tapar o outro. Recalcula a cada zoom.
+function spreadMarkers(){
+  if (!map) return;
+  const size = map.getZoom() < SMALL_Z ? 30 : 44, near = size * 0.8;
+  const list = Object.entries(markers).map(([id, m]) => { const ll = m.getLngLat(); const pt = map.project(ll); return {id, m, x:pt.x, y:pt.y}; });
+  const used = new Set();
+  for (const a of list){
+    if (used.has(a.id)) continue;
+    // junta os pinos que se tocam, também em cadeia (A perto de B, B perto de C)
+    const group = [a]; used.add(a.id);
+    for (let k = 0; k < group.length; k++)
+      for (const b of list) if (!used.has(b.id) && Math.hypot(group[k].x - b.x, group[k].y - b.y) < near){ group.push(b); used.add(b.id); }
+    // grupos grandes só acontecem com o mapa afastado: aí não se mexe (aproximar resolve)
+    if (group.length > 8){ group.forEach(g => g.m.setOffset([0,0])); continue; }
+    if (group.length === 1){ a.m.setOffset([0,0]); continue; }
+    const cx = group.reduce((s,g) => s + g.x, 0) / group.length, cy = group.reduce((s,g) => s + g.y, 0) / group.length;
+    const n = group.length, r = (size * 0.58) / Math.sin(Math.PI / n);
+    group.sort((g1, g2) => Math.atan2(g1.y - cy, g1.x - cx) - Math.atan2(g2.y - cy, g2.x - cx));
+    group.forEach((g, i) => { const ang = -Math.PI/2 + i * 2*Math.PI/n; g.m.setOffset([cx + r*Math.cos(ang) - g.x, cy + r*Math.sin(ang) - g.y]); });
   }
 }
 
@@ -289,7 +313,7 @@ function openDetail(id, fly){
     ${vids.length ? `<div class="vids">${vids.map(u => `<button class="vid" data-url="${esc(u)}"><span class="play">${ICON.play}</span><span><b>Ver vídeo</b><small>${esc(handle(u))}</small></span></button>`).join("")}</div>` : ""}
     <section class="diary" id="diary">
       <h4>O teu diário</h4>
-      <textarea id="note" placeholder="Como foi? O que provaste?">${esc(S.notes[id]?.t || "")}</textarea>
+      <textarea id="note" maxlength="2000" placeholder="Como foi? O que provaste?">${esc(S.notes[id]?.t || "")}</textarea>
       <div class="photos" id="photos"></div>
     </section>
     ${p.mine ? `<button class="link" id="del">Apagar este sítio</button>` : ""}`;
@@ -392,8 +416,8 @@ async function composePost(place, file){
   modal(`<div class="mhead"><h4>${S.code ? "Publicar no mural" : "Guardar foto"}</h4><button class="x" data-close aria-label="Fechar">${ICON.x}</button></div>
     <img class="big" src="${prev}" alt="">
     <form id="pf" style="margin-top:12px">
-      ${S.code && !S.name ? `<label for="pf-name">O teu nome<input id="pf-name" required placeholder="Como os outros te veem" autocomplete="given-name"></label>` : ""}
-      <label for="pf-cap">Legenda<textarea id="pf-cap" placeholder="Opcional"></textarea></label>
+      ${S.code && !S.name ? `<label for="pf-name">O teu nome<input id="pf-name" required maxlength="30" placeholder="Como os outros te veem" autocomplete="given-name"></label>` : ""}
+      <label for="pf-cap">Legenda<textarea id="pf-cap" maxlength="300" placeholder="Opcional"></textarea></label>
       <button class="btn dark" type="submit">${S.code ? "Publicar" : "Guardar"}</button>
       ${S.code ? "" : `<p class="hint">Fica só neste telemóvel. Liga a partilha no menu para os outros verem.</p>`}
     </form>`);
@@ -493,11 +517,16 @@ async function uploadPending(){
   if (!S.code) return;
   let local = []; try{ local = await idb.all(); }catch(e){ return; }
   for (const f of local){
-    if (f.up || f.gone) continue;
+    if (f.up || f.gone || f.failed) continue;
     if (!f.uid){ f.uid = uuid(); await idb.put(f); }
     const path = `${S.code}/${f.uid}.jpg`;
     const r = await fetch(`${SB.url}/storage/v1/object/viagem-fotos/${path}`, {method:"POST", headers:{apikey:SB.key, Authorization:"Bearer "+SB.key, "Content-Type":"image/jpeg", "x-upsert":"false"}, body:f.blob});
-    if (!r.ok && r.status !== 409 && r.status !== 400) throw new Error("upload " + r.status);
+    if (!r.ok){
+      const txt = await r.text().catch(() => "");
+      const exists = r.status === 409 || /exists|duplicate/i.test(txt);
+      if (r.status >= 500) throw new Error("upload " + r.status);           // tenta mais tarde
+      if (!exists){ f.failed = true; await idb.put(f); toast("Uma foto não pôde ser enviada para o mural"); continue; }
+    }
     const post = {place:f.place, path, by:S.device, name:S.name || "", at:f.at, caption:f.caption || ""};
     S.posts[f.uid] = post; store.set("posts", S.posts);
     S.outbox["foto:"+f.uid] = post; store.set("outbox", S.outbox);
@@ -505,7 +534,11 @@ async function uploadPending(){
   }
 }
 async function shrink(file, max = 1600){
-  const bm = await createImageBitmap(file);
+  let bm;
+  try{ bm = await createImageBitmap(file, {imageOrientation:"from-image"}); }
+  catch(e){ // alguns formatos do iPhone só abrem através de uma <img>
+    bm = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(file); });
+  }
   const k = Math.min(1, max / Math.max(bm.width, bm.height));
   const c = document.createElement("canvas"); c.width = Math.round(bm.width*k); c.height = Math.round(bm.height*k);
   c.getContext("2d").drawImage(bm, 0, 0, c.width, c.height);
@@ -529,7 +562,7 @@ async function openDiary(){
 // ───────── Partilha com quem vai contigo (Supabase) ─────────
 async function rpc(fn, body){
   const r = await fetch(`${SB.url}/rest/v1/rpc/${fn}`, {method:"POST", headers:{apikey:SB.key, "Content-Type":"application/json"}, body:JSON.stringify(body)});
-  if (!r.ok) throw new Error(await r.text());
+  if (!r.ok){ const e = new Error(await r.text()); e.status = r.status; throw e; }
   return r.json();
 }
 function change(key, value){
@@ -544,7 +577,12 @@ function sync(){
     try{
       await uploadPending();
       for (const [k,v] of Object.entries({...S.outbox})){
-        await rpc("viagem_gravar", {p_codigo:S.code, p_chave:k, p_valor:v});
+        try{ await rpc("viagem_gravar", {p_codigo:S.code, p_chave:k, p_valor:v}); }
+        catch(e){
+          // recusado pelo servidor (ex.: texto grande demais): sai da fila para não bloquear o resto
+          if (!(e.status >= 400 && e.status < 500)) throw e;
+          console.warn("Recusado pela nuvem:", k, e.message);
+        }
         if (JSON.stringify(S.outbox[k]) === JSON.stringify(v)){ delete S.outbox[k]; store.set("outbox", S.outbox); }
       }
       const rows = await rpc("viagem_ler", {p_codigo:S.code, p_desde:S.since});
@@ -619,7 +657,7 @@ async function saveOffline(onProgress){
   if (typeof style.sprite === "string") ["", "@2x"].forEach(s => [".json",".png"].forEach(ext => list.push(style.sprite + s + ext)));
   const base = location.href.replace(/[#?].*$/, "").replace(/[^/]*$/, "");
   [...THUMBS].forEach(id => list.push(base + "thumbs/" + encodeURIComponent(id) + ".jpg"));
-  ["", "index.html", "app.js?v=13", "places.js?v=13", "fun.js?v=13", "manifest.webmanifest", "icon-192.png"].forEach(f => list.push(base + f));
+  ["", "index.html", "app.js?v=14", "places.js?v=14", "fun.js?v=14", "manifest.webmanifest", "icon-192.png"].forEach(f => list.push(base + f));
   let done = 0, bytes = 0, fails = 0;
   const queue = [...new Set(list)];
   const total = queue.length;
@@ -704,10 +742,10 @@ function openAdd(pre){
   draft = Object.assign({name:"",url:"",cat:"comer",what:"",lat:null,lng:null}, draft, pre);
   modal(`<div class="mhead"><h4>Novo sítio</h4><button class="x" data-close aria-label="Fechar">${ICON.x}</button></div>
     <form id="f">
-      <label for="f-name">Nome<input id="f-name" required value="${esc(draft.name)}" placeholder="ex.: Oink"></label>
-      <label for="f-url">Link do TikTok ou Reel<input id="f-url" type="url" inputmode="url" value="${esc(draft.url)}" placeholder="Opcional"></label>
+      <label for="f-name">Nome<input id="f-name" required maxlength="80" value="${esc(draft.name)}" placeholder="ex.: Oink"></label>
+      <label for="f-url">Link do TikTok ou Reel<input id="f-url" type="url" maxlength="300" inputmode="url" value="${esc(draft.url)}" placeholder="Opcional"></label>
       <label>Categoria<div class="seg" id="f-cat">${Object.entries(CATS).map(([k,c]) => `<button type="button" data-cat="${k}" aria-pressed="${draft.cat===k}">${c.label}</button>`).join("")}</div></label>
-      <label for="f-what">Nota<textarea id="f-what" placeholder="O que queres provar ou ver">${esc(draft.what)}</textarea></label>
+      <label for="f-what">Nota<textarea id="f-what" maxlength="500" placeholder="O que queres provar ou ver">${esc(draft.what)}</textarea></label>
       <label>Localização<div class="seg"><button type="button" id="f-here" ${S.me?"":"disabled"}>Onde estou</button><button type="button" id="f-pick">Escolher no mapa</button></div>
         <p class="hint" id="f-loc">${draft.lat != null ? "Posição escolhida ✓" : "Ainda sem posição"}</p></label>
       <button class="btn dark" type="submit">Guardar</button>
@@ -780,6 +818,7 @@ function setSheet(p){ pos = p; const h = heights()[p]; sheet.style.setProperty("
 addEventListener("resize", () => setSheet(pos));
 
 // ───────── Links (#v=código para partilha, #id para abrir um sítio) ─────────
+addEventListener("hashchange", () => routeHash());   // link aberto com a app já aberta
 function routeHash(){
   const h = decodeURIComponent(location.hash.slice(1)); if (!h) return;
   const m = h.match(/^v=([a-z0-9]{12,64})$/);
