@@ -266,6 +266,7 @@ openMenu = function(){
 };
 const _setCity = setCity;
 setCity = function(c, move){ _setCity(c, move); drawHome(); };
+$("#menu").onclick = openMenu; // o botão tinha ficado com o menu antigo
 $("#home").innerHTML = ICON.home;
 $("#home").onclick = goHome;
 (function waitMap(){ if (map && map.loaded()) drawHome(); else setTimeout(waitMap, 300); })();

@@ -573,7 +573,7 @@ async function saveOffline(onProgress){
   if (typeof style.sprite === "string") ["", "@2x"].forEach(s => [".json",".png"].forEach(ext => list.push(style.sprite + s + ext)));
   const base = location.href.replace(/[#?].*$/, "").replace(/[^/]*$/, "");
   [...THUMBS].forEach(id => list.push(base + "thumbs/" + encodeURIComponent(id) + ".jpg"));
-  ["", "index.html", "app.js?v=9", "places.js?v=9", "fun.js?v=9", "manifest.webmanifest", "icon-192.png"].forEach(f => list.push(base + f));
+  ["", "index.html", "app.js?v=10", "places.js?v=10", "fun.js?v=10", "manifest.webmanifest", "icon-192.png"].forEach(f => list.push(base + f));
   let done = 0, bytes = 0, fails = 0;
   const queue = [...new Set(list)];
   const total = queue.length;
