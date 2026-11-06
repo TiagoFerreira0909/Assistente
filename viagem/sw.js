@@ -1,5 +1,5 @@
-const V = "viagem-v6";
-const SHELL = ["./", "index.html", "app.js?v=6", "places.js?v=6", "manifest.webmanifest", "icon-192.png",
+const V = "viagem-v7";
+const SHELL = ["./", "index.html", "app.js?v=7", "places.js?v=7", "manifest.webmanifest", "icon-192.png",
   "https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.css",
   "https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
@@ -9,7 +9,7 @@ self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
   // Miniaturas e fotos do mural: guardar à medida que as vês
-  if (url.pathname.includes("/viagem/thumbs/") || url.pathname.includes("/storage/v1/object/public/viagem-fotos/")) {
+  if (url.pathname.includes("/viagem/thumbs/") || (url.hostname.endsWith("openfreemap.org") && url.pathname.startsWith("/sprites/")) || url.pathname.includes("/storage/v1/object/public/viagem-fotos/")) {
     e.respondWith(caches.open("viagem-map").then(async c => {
       const hit = await c.match(e.request); if (hit) return hit;
       const r = await fetch(e.request); if (r.ok) c.put(e.request, r.clone()); return r;

@@ -573,7 +573,7 @@ async function saveOffline(onProgress){
   if (typeof style.sprite === "string") ["", "@2x"].forEach(s => [".json",".png"].forEach(ext => list.push(style.sprite + s + ext)));
   const base = location.href.replace(/[#?].*$/, "").replace(/[^/]*$/, "");
   [...THUMBS].forEach(id => list.push(base + "thumbs/" + encodeURIComponent(id) + ".jpg"));
-  ["", "index.html", "app.js?v=6", "places.js?v=6", "manifest.webmanifest", "icon-192.png"].forEach(f => list.push(base + f));
+  ["", "index.html", "app.js?v=7", "places.js?v=7", "manifest.webmanifest", "icon-192.png"].forEach(f => list.push(base + f));
   let done = 0, bytes = 0, fails = 0;
   const queue = [...new Set(list)];
   const total = queue.length;
@@ -599,7 +599,7 @@ function openMenu(){
   modal(`<div class="mhead"><h4>Mais</h4><button class="x" data-close aria-label="Fechar">${ICON.x}</button></div>
     <div class="menu">
       <button class="mrow" id="m-alerts">${ICON.bell}<span><b>Avisar quando estiver perto</b><small>A menos de ${NEAR_M} m de um sítio por ver</small></span><i class="sw ${S.alerts?"on":""}"></i></button>
-      <button class="mrow" id="m-off">${ICON.cloud}<span><b>Guardar mapa para usar sem internet</b><small id="m-off-s">${pack ? "Guardado a " + df.format(new Date(pack.at)) + ". Toca para atualizar." : "Edimburgo e Dublin, cerca de 15 MB"}</small></span></button>
+      <button class="mrow" id="m-off">${ICON.cloud}<span><b>Guardar mapa para usar sem internet</b><small id="m-off-s">${pack ? "Guardado a " + df.format(new Date(pack.at)) + ". Toca para atualizar." : "Edimburgo e Dublin, cerca de 40 MB. Faz isto com Wi-Fi."}</small></span></button>
       <div class="bar" id="m-bar" hidden><i></i></div>
       <button class="mrow" id="m-share">${ICON.people}<span><b>Partilhar com quem vai contigo</b><small>${S.code ? "Ligado. " + (lastSyncOk ? "Sincronizado a " + df.format(new Date(lastSyncOk)) : "A sincronizar…") : "Todos veem o que já foi visto, as notas e as fotos"}</small></span></button>
       <button class="mrow" id="m-feed">${ICON.grid}<span><b>Mural</b><small>Fotos de todos nos sítios da viagem</small></span></button>
