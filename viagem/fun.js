@@ -8,6 +8,7 @@ Object.assign(ICON, {
   glass:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10l-1 9a4 4 0 0 1-8 0z"/><path d="M8 8h8M12 16v5M9 21h6"/></svg>',
   dice:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.3" fill="currentColor"/></svg>',
   home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10M10 20v-5h4v5"/></svg>',
+  wheel:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg>',
   star:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 2.8 2.8 5.8 6.4.9-4.6 4.5 1.1 6.3L12 17.3l-5.7 3 1.1-6.3-4.6-4.5 6.4-.9z"/></svg>',
 });
 
@@ -194,6 +195,39 @@ function openBingo(){
   };
 }
 
+
+// ───────── Roleta do sim ou não ─────────
+let wheelRot = 0;
+function openRoleta(){
+  const segs = Array.from({length:8}, (_,i) => i % 2 === 0 ? "Sim" : "Não");
+  modal(`<div class="mhead"><h4>Sim ou não?</h4><button class="x" data-close aria-label="Fechar">${ICON.x}</button></div>
+    <input id="rq" placeholder="A pergunta (opcional): mais uma?" style="margin-bottom:16px">
+    <div class="wheelbox"><span class="pointer"></span>
+      <div class="wheel" id="wheel" style="transform:rotate(${wheelRot}deg)">${segs.map((t,i) => `<span class="wl" style="transform:rotate(${i*45+22.5}deg)"><b>${t}</b></span>`).join("")}</div>
+      <button class="hub" id="spin">Rodar</button>
+    </div>
+    <p class="wres" id="wres" aria-live="polite">&nbsp;</p>`);
+  const wheel = $("#wheel"), res = $("#wres");
+  let busy = false;
+  const spin = () => {
+    if (busy) return; busy = true; res.innerHTML = "&nbsp;";
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const extra = Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 2**32 * 360);
+    wheelRot += (reduce ? 0 : 360*6) + extra;
+    wheel.style.transition = reduce ? "none" : "transform 3.6s cubic-bezier(.12,.75,.15,1)";
+    wheel.style.transform = `rotate(${wheelRot}deg)`;
+    setTimeout(() => {
+      const a = (360 - (wheelRot % 360)) % 360;          // ângulo da roda debaixo do ponteiro
+      const sim = Math.floor(a / 45) % 2 === 0;
+      const q = $("#rq")?.value.trim();
+      res.innerHTML = `<b class="${sim ? "sim" : "nao"}">${sim ? "Sim!" : "Não."}</b>${q ? `<small>${esc(q)}</small>` : ""}`;
+      busy = false;
+    }, reduce ? 50 : 3700);
+  };
+  $("#spin").onclick = spin;
+  wheel.onclick = spin;
+}
+
 // ───────── Levar-me a casa ─────────
 function goHome(){
   const h = S.home[S.city];
@@ -252,6 +286,7 @@ const _openMenu = openMenu;
 openMenu = function(){
   _openMenu();
   $("#mbox .menu").insertAdjacentHTML("beforeend", `
+    <button class="mrow" id="m-roleta">${ICON.wheel}<span><b>Sim ou não?</b><small>Quando não conseguem decidir</small></span></button>
     <h5 class="psec" style="margin:10px 4px 0">Para a noite</h5>
     <button class="mrow" id="m-pass">${ICON.stamp}<span><b>Passaporte dos pubs</b><small>${pubs().filter(p => isDone(p.id)).length} de ${pubs().length} carimbos</small></span></button>
     <button class="mrow" id="m-rank">${ICON.pint}<span><b>Ranking da Guinness</b><small>A melhor pint da viagem, votada por todos</small></span></button>
@@ -262,6 +297,7 @@ openMenu = function(){
   $("#m-rank").onclick = openRanking;
   $("#m-whisky").onclick = openWhisky;
   $("#m-bingo").onclick = openBingo;
+  $("#m-roleta").onclick = openRoleta;
   $("#m-home").onclick = setHome;
 };
 const _setCity = setCity;
