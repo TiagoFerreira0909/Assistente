@@ -14,7 +14,8 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((chaves) =>
-      Promise.all(chaves.filter((k) => k !== VERSAO).map((k) => caches.delete(k))))
+      // Só apaga caches antigas do assistente (as do mapa da viagem ficam)
+      Promise.all(chaves.filter((k) => k.startsWith('assistente') && k !== VERSAO).map((k) => caches.delete(k))))
   );
   self.clients.claim();
 });
